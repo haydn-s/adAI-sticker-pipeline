@@ -118,9 +118,15 @@ uv run adai-sticker models
 # Re-test a saved sticker on more models
 uv run adai-sticker evaluate runs/<run> --transfer
 
-# Physical test: score your own photos of the printed sticker
-uv run adai-sticker eval-photos --photos my_photos/ --target toaster --model resnet50
+# Physical test: score your own photos of the printed sticker, broken down by condition
+uv run adai-sticker eval-photos --photos my_photos/ --target toaster --meta my_photos/shoot.csv
+
+# Live webcam demo: top-5 guesses, a FOOLED banner, and a Grad-CAM overlay (press g)
+uv sync --extra demo
+uv run adai-sticker demo --target toaster
 ```
+
+The full print-and-photograph protocol is in [docs/PHYSICAL_TESTING.md](docs/PHYSICAL_TESTING.md).
 
 `uv run adai-sticker make --help` lists every option.
 

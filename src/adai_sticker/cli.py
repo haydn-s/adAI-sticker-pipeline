@@ -144,6 +144,7 @@ def cmd_eval_photos(args: argparse.Namespace) -> int:
 
     from .data import IMAGE_EXTENSIONS
     from .models import default_device, load_model
+    from .physical import load_metadata, summarize_by_condition
     from .sticker import load_image
 
     device = torch.device(args.device) if args.device else default_device()
@@ -152,37 +153,69 @@ def cmd_eval_photos(args: argparse.Namespace) -> int:
     except BlockedTargetError as err:
         print(f"Blocked: {err}", file=sys.stderr)
         return 2
-    model = load_model(args.model, device)
-    t_idx = model.class_index(target)
-    names = model.class_names
-    photos = sorted(p for p in Path(args.photos).rglob("*") if p.suffix.lower() in IMAGE_EXTENSIONS)
+    root = Path(args.photos)
+    photos = sorted(p for p in root.rglob("*")
+                    if p.suffix.lower() in IMAGE_EXTENSIONS and "annotated" not in p.relative_to(root).parts)
     if not photos:
         print(f"No photos found in {args.photos}", file=sys.stderr)
         return 1
+    meta = load_metadata(Path(args.meta)) if args.meta else {}
+    model = load_model(args.model, device)
+    t_idx = model.class_index(target)
+    names = model.class_names
     rows = []
     with torch.no_grad():
         for p in photos:
             img = load_image(p, model.input_size)[None].to(device)
             probs = model(img).float().softmax(-1)[0]
             top = probs.topk(5)
+            rel = str(p.relative_to(root))
             rows.append({
-                "photo": str(p.relative_to(args.photos)),
+                "photo": rel,
+                **meta.get(rel, meta.get(p.name, {})),
                 "prediction": names[int(top.indices[0])],
                 "confidence": round(float(top.values[0]), 4),
                 "target_prob": round(float(probs[t_idx]), 4),
                 "target_top1": int(top.indices[0]) == t_idx,
                 "target_top5": t_idx in top.indices.tolist(),
             })
-    out = Path(args.out) if args.out else Path(args.photos) / f"results_{args.model}.csv"
+    out = Path(args.out) if args.out else root / f"results_{args.model}.csv"
+    fieldnames = list(dict.fromkeys(k for r in rows for k in r))
     with out.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
     hits = sum(r["target_top1"] for r in rows)
     top5 = sum(r["target_top5"] for r in rows)
     print(f"{len(rows)} photos  |  labeled '{target.label}': {hits} ({hits / len(rows):.0%})  |  "
           f"in top 5: {top5} ({top5 / len(rows):.0%})")
+    if meta:
+        summary = summarize_by_condition(rows, list(next(iter(meta.values()))))
+        for line in summary:
+            print(line)
     print(f"Per-photo results: {out}")
+    return 0
+
+
+def cmd_demo(args: argparse.Namespace) -> int:  # pragma: no cover - needs a camera
+    try:
+        import cv2  # noqa: F401
+    except ImportError:
+        print("The live demo needs OpenCV: uv sync --extra demo", file=sys.stderr)
+        return 1
+    from .demo import run_demo
+    from .models import load_model
+
+    target = None
+    if args.target:
+        try:
+            target = resolve_target(args.target, allow_free_text=supports_free_text(args.model))
+        except BlockedTargetError as err:
+            print(f"Blocked: {err}", file=sys.stderr)
+            return 2
+    model = load_model(args.model, args.device)
+    run_demo(model, target, camera=args.camera, save_dir=Path(args.save_dir) if args.save_dir else None,
+             show_cam=args.gradcam)
     return 0
 
 
@@ -252,9 +285,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--photos", required=True, help="folder of photos")
     s.add_argument("--target", required=True)
     s.add_argument("--model", default="resnet50", choices=available_models())
+    s.add_argument("--meta", help="CSV with a 'photo' column plus condition columns "
+                                   "(distance, angle, lighting, ...) to break results down by")
     s.add_argument("--out", help="CSV path (default <photos>/results_<model>.csv)")
     s.add_argument("--device")
     s.set_defaults(func=cmd_eval_photos)
+
+    s = sub.add_parser("demo", help="live webcam demo (needs: uv sync --extra demo)")
+    s.add_argument("--model", default="resnet50", choices=available_models())
+    s.add_argument("--target", help="highlight this label and show FOOLED when it wins")
+    s.add_argument("--camera", type=int, default=0)
+    s.add_argument("--gradcam", action="store_true", help="start with the Grad-CAM overlay on")
+    s.add_argument("--save-dir", help="where 's' saves frames (default photos/<timestamp>)")
+    s.add_argument("--device")
+    s.set_defaults(func=cmd_demo)
     return p
 
 

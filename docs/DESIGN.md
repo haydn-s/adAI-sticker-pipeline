@@ -32,6 +32,7 @@ to use it, see the [README](../README.md).
 | `explain.py` | Grad-CAM / gradient saliency and the attention-share metric |
 | `export.py`, `report.py` | Files, figures, report card, Markdown and JSON reports |
 | `pipeline.py` | End-to-end orchestration and run folders |
+| `demo.py`, `physical.py` | Live webcam demo; photo-shoot metadata and per-condition summaries |
 | `cli.py` | `adai-sticker` command |
 
 ## Key decisions

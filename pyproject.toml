@@ -18,6 +18,11 @@ dependencies = [
 [project.scripts]
 adai-sticker = "adai_sticker.cli:main"
 
+[project.optional-dependencies]
+demo = [
+    "opencv-python>=4.9",
+]
+
 [dependency-groups]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
