@@ -100,3 +100,11 @@ def test_make_sticker_refuses_blocked_target(tmp_path):
     with pytest.raises(BlockedTargetError):
         pipeline.make_sticker(request, tmp_path / "blocked", device="cpu", say=lambda _m: None)
     assert not (tmp_path / "blocked").exists()
+
+
+def test_request_from_dict_ignores_retired_settings():
+    d = pipeline.StickerRequest(target="toaster").to_dict()
+    d["attack"]["palette_temperature"] = [1.0, 0.05]  # a setting from an older version
+    with pytest.warns(UserWarning, match="palette_temperature"):
+        req = pipeline.StickerRequest.from_dict(d)
+    assert req.attack.steps == 1000 and isinstance(req.attack.eot.scale, tuple)

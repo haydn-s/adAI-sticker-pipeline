@@ -22,8 +22,9 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import warnings
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 import torch
@@ -74,25 +75,34 @@ class StickerRequest:
 
     @classmethod
     def from_dict(cls, d: dict) -> StickerRequest:
+        """Rebuild a request from JSON, tolerating settings added or removed since it was saved."""
         attack = dict(d.get("attack", {}))
-        eot = EOTConfig(**{k: tuple(v) if isinstance(v, list) else v
-                           for k, v in attack.pop("eot", {}).items()})
-        attack = {k: tuple(v) if isinstance(v, list) else v for k, v in attack.items()}
+        eot = _build(EOTConfig, attack.pop("eot", {}))
         ev = dict(d.get("eval", {}))
-        ev = {k: tuple(v) if isinstance(v, list) else v for k, v in ev.items()}
         if "sweeps" in ev:
             ev["sweeps"] = {k: tuple(v) for k, v in ev["sweeps"].items()}
         return cls(
             target=d["target"],
             models=list(d.get("models", ["resnet50"])),
-            design=StickerDesign(**d.get("design", {})),
-            attack=AttackConfig(**attack, eot=eot),
+            design=_build(StickerDesign, d.get("design", {})),
+            attack=_build(AttackConfig, attack, eot=eot),
             eval_models=list(d.get("eval_models", [])),
-            eval=EvalSettings(**ev),
+            eval=_build(EvalSettings, ev),
             backgrounds=d.get("backgrounds"),
             train_images=d.get("train_images", 2000),
             full_battery=d.get("full_battery", True),
         )
+
+
+def _build(cls, values: dict, **extra):
+    """Construct a settings dataclass from JSON: lists become tuples, unknown keys are dropped."""
+    known = {f.name for f in fields(cls)}
+    unknown = sorted(set(values) - known)
+    if unknown:
+        warnings.warn(f"Ignoring settings no longer used by {cls.__name__}: {', '.join(unknown)}",
+                      stacklevel=3)
+    kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in values.items() if k in known}
+    return cls(**kwargs, **extra)
 
 
 def resolve_request_target(request: StickerRequest) -> Target:
