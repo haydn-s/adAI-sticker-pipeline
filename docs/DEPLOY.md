@@ -48,6 +48,22 @@ the entrypoint before the `uv.lock` at the repo root. The lock file would instal
 GPU PyTorch (several GB of CUDA libraries) and no Streamlit. `tests/test_deploy.py`
 checks that `deploy/requirements.txt` stays in step with `pyproject.toml`.
 
+## What has been checked, and what hasn't
+
+Checked before the first deploy:
+
+- `deploy/requirements.txt` resolves for Linux x86-64 on Python 3.12 and 3.13, with
+  both uv's and pip's index rules. It installs `torch 2.15.0+cpu` and no CUDA packages.
+- In a fresh virtual environment with only those requirements (no project install, no
+  FastAPI), the app renders its welcome, model and results pages.
+- A full sticker on CPU, end to end in the browser, at phone and desktop widths, in
+  dark mode.
+- `tests/test_streamlit.py` drives the whole flow headless in CI, with a tiny stand-in
+  model.
+
+Not checked yet: an actual Community Cloud deployment. Its real speed, memory headroom
+and the first-run Imagenette download will only show up there.
+
 ## What visitors get on Community Cloud
 
 Community Cloud gives an app about **2 CPU cores and up to 2.7 GB of memory, with no
@@ -79,14 +95,23 @@ limited to two CPU threads:
 | Steps × photos per step | Fooling rate on practice photos at the end | Optimization time |
 |---|---|---|
 | 200 × 8 | ~0% (never got going) | ~2 min |
-| 300 × 12 | ~36%, still rising | 2.3 min |
+| 300 × 12 (Quick) | ~36%, still rising | 2.3–2.6 min |
 | 400 × 16 | ~45% | not timed cleanly (ran alongside others) |
 | 300 × 12, EfficientNet-B0 | ~17% | 11.5 min |
 
+A complete Quick sticker made the way the app makes it (MobileNet V3, "toaster", 2
+threads) took **3.7 minutes**: 2.5 optimizing and 1.2 testing. With "Also test on the
+other 5 AIs" it took **5.6 minutes**. It fooled MobileNet on **25% and 44%** of held-out
+photos in two runs, against 0% for both controls. At this budget, results vary a lot
+from run to run.
+
 Community Cloud's shared cores are likely slower than a recent Mac's. That hasn't been
 measured yet, so time the first sticker after deploying. The app shows a live
-time-left estimate during optimization. CPU stickers are weaker than GPU ones; the
-results page reports their real success rate on held-out photos.
+time-left estimate during optimization, and the progress bar steps through each test.
+
+**PyTorch is limited to 2 CPU threads** (`ADAI_TORCH_THREADS` overrides this). More
+threads made these small batches slower: on a 6-core Mac, MobileNet V3 took 0.44 s
+per step with 2 threads and 1.5 s with 6.
 
 The details:
 
@@ -125,7 +150,7 @@ app's Secrets as top-level keys; Streamlit exposes those as environment variable
 | `ADAI_RUNS_DIR` | `runs/streamlit` | where new stickers are written |
 | `ADAI_GALLERY_DIR` | `docs/examples` | finished example stickers to show |
 | `ADAI_BACKGROUNDS` | Imagenette | a folder of practice photos, or `synthetic` for smoke tests |
-| `ADAI_TORCH_THREADS` | detected | CPU threads for PyTorch (defaults to the container's CPU quota) |
+| `ADAI_TORCH_THREADS` | 2 | CPU threads for PyTorch (1 if the container's CPU quota is 1) |
 
 ## Privacy and safety
 
