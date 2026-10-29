@@ -121,8 +121,8 @@ class Evaluator:
         self.settings = settings or EvalSettings()
         self.eot = eot or EOTConfig()
         self.target = target
-        n = min(self.settings.n_images, len(backgrounds.without_label(target.imagenet_index)))
         bgs = backgrounds.without_label(target.imagenet_index)
+        n = min(self.settings.n_images, len(bgs))
         self.backgrounds = BackgroundSet(bgs.images[:n], bgs.labels[:n], bgs.source)
         self._clean_cache: dict[str, torch.Tensor] = {}
 

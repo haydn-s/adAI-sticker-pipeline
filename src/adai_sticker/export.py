@@ -54,7 +54,7 @@ def print_sheet(
     path: Path,
     title: str,
     subtitle: str,
-    sizes_in: tuple[float, ...] = (4.0, 3.0, 2.0, 2.0, 1.5, 1.5),
+    sizes_in: tuple[float, ...] = (4.0, 3.0, 2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.5),
 ) -> Path:
     """A US-Letter PDF with the sticker at several physical sizes and cut lines.
 
@@ -64,7 +64,7 @@ def print_sheet(
     page_w, page_h = int(LETTER_IN[0] * PRINT_DPI), int(LETTER_IN[1] * PRINT_DPI)
     page = Image.new("RGB", (page_w, page_h), "white")
     draw = ImageDraw.Draw(page)
-    margin, gap = int(0.5 * PRINT_DPI), int(0.35 * PRINT_DPI)
+    margin, gap = int(0.4 * PRINT_DPI), int(0.25 * PRINT_DPI)
     title_font = ImageFont.load_default(size=60)
     body_font = ImageFont.load_default(size=34)
     small_font = ImageFont.load_default(size=28)
@@ -88,7 +88,7 @@ def print_sheet(
         if x + px + 2 * pad > page_w - margin:
             x, y, row_h = margin, y + row_h + gap, 0
         if y + px + 2 * pad + 50 > page_h - margin - 120:
-            break
+            continue  # this size doesn't fit on the page; smaller ones later in the list may
         page.paste(img, (x + pad, y + pad), img)
         page.paste(Image.new("RGB", ring_mask.size, "#9a9996"), (x, y), ring_mask)
         draw.text((x + pad, y + px + 2 * pad + 8), f'{size:g}" sticker', fill="#52514e", font=small_font)

@@ -40,9 +40,14 @@ to use it, see the [README](../README.md).
 Laying a "normal" photo over a finished sticker would overwrite the adversarial
 pixels. So the cover photo is part of the optimization, in one of two ways:
 
-- **Region mode.** The cover is kept exactly, except inside an editable region: a
-  border, center, stripes, corners, or a custom painted mask. The adversarial pixels
-  are visible but confined to that region. `region_amount` is the stealth knob.
+- **Region mode.** The cover is kept exactly, except inside an editable region:
+  stripes (default), a border, the center, the corners, or a custom painted mask.
+  The adversarial pixels are visible but confined to that region. `region_amount` is
+  the stealth knob. *Where* the region sits matters as much as its size. In early
+  tests, stripes covering ~50% of the sticker succeeded quickly, while a border ring
+  or central disk of similar area stalled. Stripes spread the attack across the
+  sticker's whole footprint, and the full-sticker results show attacks need a
+  minimum footprint (about 30% of the photo's width) to work.
 - **Blend mode.** The whole cover photo is perturbed, with each pixel limited to
   `±epsilon` (parameterized as `epsilon * tanh(w)` so the limit holds exactly).
   `epsilon` is the stealth knob: small values look like the photo, large values are
@@ -70,13 +75,28 @@ vary one factor at a time.
 filter to roughly its on-screen size. Without this, the optimizer can hide signal in
 pixel-level detail that `grid_sample` aliases but a real camera would never resolve.
 
-### Palette stickers: relax, then commit
-A palette sticker has a per-pixel softmax over the palette colors. The softmax
-temperature is annealed from 1.0 to 0.05. For the last 40% of steps the sticker is
-rendered **hard**, one palette color per pixel, using a straight-through estimator.
-The printed sticker is therefore exactly the one that was evaluated: no rounding step
-happens after optimization. `palette="auto"` runs k-means on the cover photo so
-adversarial regions match its colors.
+### Palette stickers: optimize freely, then snap
+Palette stickers are optimized as free RGB. During the first half of optimization,
+a gradually increasing penalty pulls each color toward its nearest palette color.
+After that, every pixel **snaps** to its nearest palette color in the forward pass.
+A straight-through estimator passes gradients back to the underlying free colors, so
+the attack keeps adapting to the snapped image. The printed sticker is exactly the
+one that was evaluated.
+
+We compared three schedules on ResNet-50, 400 steps, "toaster", "primary" palette
+(success on training batches, last 100 steps):
+
+| Schedule | Success |
+|---|---|
+| Free color (no palette, reference) | 58% |
+| **Pull toward palette, snap at 50% (default)** | **42%** |
+| Weaker pull, snap at 80% | 39% |
+| Soft-to-hard vector quantization (softmax over color distances, annealed) | 0% |
+
+The soft relaxation saturates and its gradients vanish, so it was dropped.
+Restricting colors costs some attack strength, a trade-off users can see directly.
+`palette="auto"` runs k-means on the cover photo so adversarial regions match its
+colors.
 
 ### Losses
 - **Target loss.** Cross-entropy toward the target, as in Brown et al. A capped

@@ -295,6 +295,18 @@ def evaluate_sticker(
 # ---------------------------------------------------------------------------
 
 
+def export_files(sticker: Sticker, target: Target, request: StickerRequest, run_dir: Path) -> dict:
+    """Write the printable sticker files (PNGs and the print-sheet PDF)."""
+    files = save_sticker_images(sticker, run_dir)
+    files["print_sheet"] = print_sheet(
+        sticker, run_dir / "print_sheet.pdf",
+        title=f'Adversarial sticker: "{target.label}"',
+        subtitle=f"Optimized against {', '.join(rpt.model_name(m) for m in request.models)}",
+    ).name
+    _save_json(files, run_dir / "files.json")
+    return files
+
+
 def make_sticker(
     request: StickerRequest,
     run_dir: str | Path,
@@ -319,13 +331,7 @@ def make_sticker(
     result = optimize_sticker(sticker, list(models.values()), target, train, request.attack,
                               on_step=on_step)
     save_run(result, request, run_dir)
-    files = save_sticker_images(result.sticker, run_dir)
-    files["print_sheet"] = print_sheet(
-        result.sticker, run_dir / "print_sheet.pdf",
-        title=f'Adversarial sticker: "{target.label}"',
-        subtitle=f"Optimized against {', '.join(rpt.model_name(m) for m in request.models)}",
-    ).name
-    _save_json(files, run_dir / "files.json")
+    files = export_files(result.sticker, target, request, run_dir)
     if not evaluate:
         return {"run_dir": str(run_dir), "files": files}
     summary = evaluate_sticker(result.sticker, target, request, run_dir, device, models, say,
@@ -344,7 +350,10 @@ def reevaluate(run_dir: str | Path, eval_models: list[str] | None = None,
         request.eval_models = eval_models
     history_path = run_dir / "history.json"
     history = json.loads(history_path.read_text()) if history_path.exists() else None
-    return evaluate_sticker(sticker, target, request, run_dir, device, say=say, history=history)
+    files = export_files(sticker, target, request, run_dir)
+    summary = evaluate_sticker(sticker, target, request, run_dir, device, say=say, history=history)
+    summary["files"] = files
+    return summary
 
 
 __all__ = [

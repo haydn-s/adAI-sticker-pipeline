@@ -1,0 +1,922 @@
+{
+  "target": {
+    "label": "toaster",
+    "imagenet_index": 859
+  },
+  "models": [
+    "resnet50"
+  ],
+  "design": {
+    "resolution": 224,
+    "shape": "circle",
+    "palette": null,
+    "palette_size": 8,
+    "cover_mode": "none",
+    "cover_image": null,
+    "region": "border",
+    "region_amount": 0.3,
+    "epsilon": 0.12
+  },
+  "attack": {
+    "steps": 1000,
+    "batch_size": 24,
+    "lr": 0.2,
+    "loss": "ce",
+    "margin": 5.0,
+    "tv_weight": 0.5,
+    "nps_weight": 0.25,
+    "scene_size": 224,
+    "palette_temperature": [
+      1.0,
+      0.05
+    ],
+    "hard_palette_from": 0.6,
+    "seed": 0,
+    "eot": {
+      "scale": [
+        0.25,
+        0.45
+      ],
+      "rotation": 180.0,
+      "perspective": 0.25,
+      "print_gain": 0.08,
+      "print_offset": 0.04,
+      "gamut": [
+        0.04,
+        0.96
+      ],
+      "brightness": [
+        0.7,
+        1.3
+      ],
+      "contrast": [
+        0.75,
+        1.25
+      ],
+      "blur_sigma": [
+        0.0,
+        1.2
+      ],
+      "noise_std": 0.03
+    }
+  },
+  "eval_settings": {
+    "n_images": 300,
+    "grid_images": 100,
+    "batch_size": 50,
+    "scene_size": 224,
+    "default_scale": 0.35,
+    "seed": 1234,
+    "grid_angles": [
+      -180,
+      -150,
+      -120,
+      -90,
+      -60,
+      -30,
+      0,
+      30,
+      60,
+      90,
+      120,
+      150,
+      180
+    ],
+    "grid_scales": [
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.45,
+      0.5
+    ],
+    "sweeps": {
+      "brightness": [
+        0.4,
+        0.6,
+        0.8,
+        1.0,
+        1.2,
+        1.4,
+        1.6
+      ],
+      "contrast": [
+        0.4,
+        0.6,
+        0.8,
+        1.0,
+        1.2,
+        1.4
+      ],
+      "blur": [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        3.0
+      ],
+      "noise": [
+        0.0,
+        0.02,
+        0.04,
+        0.06,
+        0.08,
+        0.12
+      ],
+      "perspective": [
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "jpeg": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        10
+      ],
+      "color_cast": [
+        0.0,
+        0.05,
+        0.1,
+        0.15,
+        0.2,
+        0.3
+      ]
+    }
+  },
+  "backgrounds": {
+    "train": "imagenette/train",
+    "val": "/Users/haydn/projects/duke/aipi-courses/aipi-590-xai/adAI-sticker-pipeline/data/imagenette2-320/val:600:841f171978"
+  },
+  "evaluation": {
+    "resnet50": {
+      "model": "resnet50",
+      "controls": {
+        "no sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0033333333333333335,
+          "target_prob": 0.0005144535563886166,
+          "disruption_rate": 0.0,
+          "n": 300
+        },
+        "random-noise sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0,
+          "target_prob": 0.0004902472967902819,
+          "disruption_rate": 0.08786610878661087,
+          "n": 300
+        },
+        "adversarial sticker": {
+          "success_rate": 0.6666666666666666,
+          "top5_rate": 0.9966666666666667,
+          "target_prob": 0.4133085568745931,
+          "disruption_rate": 0.6108786610878661,
+          "n": 300
+        }
+      },
+      "headline": {
+        "success_rate": 0.6666666666666666,
+        "top5_rate": 0.9966666666666667,
+        "target_prob": 0.4133085568745931,
+        "disruption_rate": 0.6108786610878661,
+        "n": 300
+      },
+      "grid": {
+        "angles": [
+          -180,
+          -150,
+          -120,
+          -90,
+          -60,
+          -30,
+          0,
+          30,
+          60,
+          90,
+          120,
+          150,
+          180
+        ],
+        "scales": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5
+        ],
+        "success_rate": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.01,
+            0.01,
+            0.0,
+            0.01,
+            0.0,
+            0.01,
+            0.0,
+            0.0,
+            0.01,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.21,
+            0.21,
+            0.15,
+            0.16,
+            0.14,
+            0.17,
+            0.22,
+            0.22,
+            0.21,
+            0.21,
+            0.18,
+            0.17,
+            0.21
+          ],
+          [
+            0.49,
+            0.53,
+            0.5,
+            0.44,
+            0.49,
+            0.54,
+            0.53,
+            0.56,
+            0.58,
+            0.52,
+            0.49,
+            0.51,
+            0.49
+          ],
+          [
+            0.72,
+            0.77,
+            0.71,
+            0.75,
+            0.72,
+            0.72,
+            0.76,
+            0.75,
+            0.75,
+            0.74,
+            0.73,
+            0.77,
+            0.72
+          ],
+          [
+            0.87,
+            0.85,
+            0.82,
+            0.83,
+            0.84,
+            0.83,
+            0.82,
+            0.87,
+            0.84,
+            0.84,
+            0.82,
+            0.87,
+            0.87
+          ],
+          [
+            0.9,
+            0.89,
+            0.88,
+            0.9,
+            0.91,
+            0.92,
+            0.94,
+            0.91,
+            0.91,
+            0.92,
+            0.91,
+            0.9,
+            0.9
+          ],
+          [
+            0.93,
+            0.91,
+            0.93,
+            0.9,
+            0.93,
+            0.94,
+            0.93,
+            0.94,
+            0.95,
+            0.92,
+            0.91,
+            0.94,
+            0.93
+          ]
+        ]
+      },
+      "sweeps": {
+        "brightness": {
+          "factor": "brightness",
+          "values": [
+            0.4,
+            0.6,
+            0.8,
+            1.0,
+            1.2,
+            1.4,
+            1.6
+          ],
+          "description": "Scene brightness multiplier (1.0 = unchanged; <1 darker, >1 brighter).",
+          "results": [
+            {
+              "success_rate": 0.7033333333333334,
+              "top5_rate": 1.0,
+              "target_prob": 0.41758079528808595,
+              "disruption_rate": 0.6485355648535565,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7433333333333333,
+              "top5_rate": 1.0,
+              "target_prob": 0.439344482421875,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7566666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.44506926854451495,
+              "disruption_rate": 0.698744769874477,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7433333333333333,
+              "top5_rate": 1.0,
+              "target_prob": 0.43543968836466473,
+              "disruption_rate": 0.6861924686192469,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7266666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.41800976435343423,
+              "disruption_rate": 0.6736401673640168,
+              "n": 300
+            },
+            {
+              "success_rate": 0.72,
+              "top5_rate": 1.0,
+              "target_prob": 0.3908436902364095,
+              "disruption_rate": 0.6694560669456067,
+              "n": 300
+            }
+          ]
+        },
+        "contrast": {
+          "factor": "contrast",
+          "values": [
+            0.4,
+            0.6,
+            0.8,
+            1.0,
+            1.2,
+            1.4
+          ],
+          "description": "Scene contrast multiplier (1.0 = unchanged).",
+          "results": [
+            {
+              "success_rate": 0.68,
+              "top5_rate": 1.0,
+              "target_prob": 0.3889012845357259,
+              "disruption_rate": 0.6234309623430963,
+              "n": 300
+            },
+            {
+              "success_rate": 0.72,
+              "top5_rate": 1.0,
+              "target_prob": 0.43209196090698243,
+              "disruption_rate": 0.6652719665271967,
+              "n": 300
+            },
+            {
+              "success_rate": 0.75,
+              "top5_rate": 1.0,
+              "target_prob": 0.44451016743977867,
+              "disruption_rate": 0.694560669456067,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43923662185668944,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7166666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.4237795893351237,
+              "disruption_rate": 0.6610878661087866,
+              "n": 300
+            }
+          ]
+        },
+        "blur": {
+          "factor": "blur",
+          "values": [
+            0.0,
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            3.0
+          ],
+          "description": "Gaussian blur sigma in pixels (camera out of focus / motion).",
+          "results": [
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.74,
+              "top5_rate": 1.0,
+              "target_prob": 0.43904425303141276,
+              "disruption_rate": 0.6820083682008368,
+              "n": 300
+            },
+            {
+              "success_rate": 0.71,
+              "top5_rate": 1.0,
+              "target_prob": 0.38996642430623374,
+              "disruption_rate": 0.6527196652719666,
+              "n": 300
+            },
+            {
+              "success_rate": 0.5633333333333334,
+              "top5_rate": 0.9933333333333333,
+              "target_prob": 0.2766848945617676,
+              "disruption_rate": 0.5146443514644351,
+              "n": 300
+            },
+            {
+              "success_rate": 0.20666666666666667,
+              "top5_rate": 0.7966666666666666,
+              "target_prob": 0.06292603492736816,
+              "disruption_rate": 0.29707112970711297,
+              "n": 300
+            },
+            {
+              "success_rate": 0.0,
+              "top5_rate": 0.006666666666666667,
+              "target_prob": 0.0016212876886129378,
+              "disruption_rate": 0.4895397489539749,
+              "n": 300
+            }
+          ]
+        },
+        "noise": {
+          "factor": "noise",
+          "values": [
+            0.0,
+            0.02,
+            0.04,
+            0.06,
+            0.08,
+            0.12
+          ],
+          "description": "Gaussian sensor-noise standard deviation (low light, cheap cameras).",
+          "results": [
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7866666666666666,
+              "top5_rate": 1.0,
+              "target_prob": 0.4795827992757161,
+              "disruption_rate": 0.7364016736401674,
+              "n": 300
+            },
+            {
+              "success_rate": 0.8333333333333334,
+              "top5_rate": 1.0,
+              "target_prob": 0.49552466710408527,
+              "disruption_rate": 0.7949790794979079,
+              "n": 300
+            },
+            {
+              "success_rate": 0.8433333333333334,
+              "top5_rate": 1.0,
+              "target_prob": 0.5000359598795573,
+              "disruption_rate": 0.8117154811715481,
+              "n": 300
+            },
+            {
+              "success_rate": 0.8566666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.5085758336385091,
+              "disruption_rate": 0.8284518828451883,
+              "n": 300
+            },
+            {
+              "success_rate": 0.84,
+              "top5_rate": 1.0,
+              "target_prob": 0.5058298937479655,
+              "disruption_rate": 0.8242677824267782,
+              "n": 300
+            }
+          ]
+        },
+        "perspective": {
+          "factor": "perspective",
+          "values": [
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5
+          ],
+          "description": "Perspective tilt of the sticker (viewed at an angle).",
+          "results": [
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7366666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.4448775482177734,
+              "disruption_rate": 0.6820083682008368,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7166666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43489134470621743,
+              "disruption_rate": 0.6610878661087866,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7,
+              "top5_rate": 1.0,
+              "target_prob": 0.425723393758138,
+              "disruption_rate": 0.6485355648535565,
+              "n": 300
+            },
+            {
+              "success_rate": 0.66,
+              "top5_rate": 1.0,
+              "target_prob": 0.4039320373535156,
+              "disruption_rate": 0.5983263598326359,
+              "n": 300
+            },
+            {
+              "success_rate": 0.61,
+              "top5_rate": 1.0,
+              "target_prob": 0.36412556330362955,
+              "disruption_rate": 0.5564853556485355,
+              "n": 300
+            }
+          ]
+        },
+        "jpeg": {
+          "factor": "jpeg",
+          "values": [
+            100,
+            80,
+            60,
+            40,
+            20,
+            10
+          ],
+          "description": "JPEG quality (lower = heavier compression, as in messaging apps).",
+          "results": [
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.6066666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.3163033358256022,
+              "disruption_rate": 0.5564853556485355,
+              "n": 300
+            },
+            {
+              "success_rate": 0.53,
+              "top5_rate": 0.9933333333333333,
+              "target_prob": 0.2605279541015625,
+              "disruption_rate": 0.4769874476987448,
+              "n": 300
+            },
+            {
+              "success_rate": 0.4633333333333333,
+              "top5_rate": 0.9833333333333333,
+              "target_prob": 0.21832525253295898,
+              "disruption_rate": 0.4100418410041841,
+              "n": 300
+            },
+            {
+              "success_rate": 0.33666666666666667,
+              "top5_rate": 0.9333333333333333,
+              "target_prob": 0.13167267322540283,
+              "disruption_rate": 0.3598326359832636,
+              "n": 300
+            },
+            {
+              "success_rate": 0.14666666666666667,
+              "top5_rate": 0.6566666666666666,
+              "target_prob": 0.04360387841860453,
+              "disruption_rate": 0.30962343096234307,
+              "n": 300
+            }
+          ]
+        },
+        "color_cast": {
+          "factor": "color_cast",
+          "values": [
+            0.0,
+            0.05,
+            0.1,
+            0.15,
+            0.2,
+            0.3
+          ],
+          "description": "Warm color cast strength on the printed sticker (printer or lighting tint).",
+          "results": [
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.43944154103597005,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.4344547971089681,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7466666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.42646565119425456,
+              "disruption_rate": 0.6903765690376569,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7266666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.4170286750793457,
+              "disruption_rate": 0.6652719665271967,
+              "n": 300
+            },
+            {
+              "success_rate": 0.7166666666666667,
+              "top5_rate": 1.0,
+              "target_prob": 0.40581162134806315,
+              "disruption_rate": 0.6569037656903766,
+              "n": 300
+            },
+            {
+              "success_rate": 0.6833333333333333,
+              "top5_rate": 1.0,
+              "target_prob": 0.3804940668741862,
+              "disruption_rate": 0.6150627615062761,
+              "n": 300
+            }
+          ]
+        }
+      }
+    },
+    "mobilenet_v3_large": {
+      "model": "mobilenet_v3_large",
+      "controls": {
+        "no sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0033333333333333335,
+          "target_prob": 0.000516066737473011,
+          "disruption_rate": 0.0,
+          "n": 300
+        },
+        "random-noise sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.006666666666666667,
+          "target_prob": 0.000496694849183162,
+          "disruption_rate": 0.14601769911504425,
+          "n": 300
+        },
+        "adversarial sticker": {
+          "success_rate": 0.05,
+          "top5_rate": 0.18333333333333332,
+          "target_prob": 0.023351836204528808,
+          "disruption_rate": 0.23008849557522124,
+          "n": 300
+        }
+      },
+      "headline": {
+        "success_rate": 0.05,
+        "top5_rate": 0.18333333333333332,
+        "target_prob": 0.023351836204528808,
+        "disruption_rate": 0.23008849557522124,
+        "n": 300
+      }
+    },
+    "efficientnet_b0": {
+      "model": "efficientnet_b0",
+      "controls": {
+        "no sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0,
+          "target_prob": 0.00016708934369186562,
+          "disruption_rate": 0.0,
+          "n": 300
+        },
+        "random-noise sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0033333333333333335,
+          "target_prob": 0.0004566044422487418,
+          "disruption_rate": 0.16049382716049382,
+          "n": 300
+        },
+        "adversarial sticker": {
+          "success_rate": 0.04666666666666667,
+          "top5_rate": 0.14333333333333334,
+          "target_prob": 0.027985361615816752,
+          "disruption_rate": 0.35390946502057613,
+          "n": 300
+        }
+      },
+      "headline": {
+        "success_rate": 0.04666666666666667,
+        "top5_rate": 0.14333333333333334,
+        "target_prob": 0.027985361615816752,
+        "disruption_rate": 0.35390946502057613,
+        "n": 300
+      }
+    },
+    "convnext_tiny": {
+      "model": "convnext_tiny",
+      "controls": {
+        "no sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0,
+          "target_prob": 0.0002093783983339866,
+          "disruption_rate": 0.0,
+          "n": 300
+        },
+        "random-noise sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0,
+          "target_prob": 0.00021247022785246373,
+          "disruption_rate": 0.03765690376569038,
+          "n": 300
+        },
+        "adversarial sticker": {
+          "success_rate": 0.14,
+          "top5_rate": 0.82,
+          "target_prob": 0.11460191408793131,
+          "disruption_rate": 0.1297071129707113,
+          "n": 300
+        }
+      },
+      "headline": {
+        "success_rate": 0.14,
+        "top5_rate": 0.82,
+        "target_prob": 0.11460191408793131,
+        "disruption_rate": 0.1297071129707113,
+        "n": 300
+      }
+    },
+    "vit_b_16": {
+      "model": "vit_b_16",
+      "controls": {
+        "no sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0,
+          "target_prob": 0.00013465092206994692,
+          "disruption_rate": 0.0,
+          "n": 300
+        },
+        "random-noise sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.0033333333333333335,
+          "target_prob": 0.0001805913479377826,
+          "disruption_rate": 0.07722007722007722,
+          "n": 300
+        },
+        "adversarial sticker": {
+          "success_rate": 0.05333333333333334,
+          "top5_rate": 0.29,
+          "target_prob": 0.0390348744392395,
+          "disruption_rate": 0.11196911196911197,
+          "n": 300
+        }
+      },
+      "headline": {
+        "success_rate": 0.05333333333333334,
+        "top5_rate": 0.29,
+        "target_prob": 0.0390348744392395,
+        "disruption_rate": 0.11196911196911197,
+        "n": 300
+      }
+    },
+    "clip-vit-b-32": {
+      "model": "clip-vit-b-32",
+      "controls": {
+        "no sticker": {
+          "success_rate": 0.0,
+          "top5_rate": 0.006666666666666667,
+          "target_prob": 0.0014240060622493426,
+          "disruption_rate": 0.0,
+          "n": 300
+        },
+        "random-noise sticker": {
+          "success_rate": 0.0033333333333333335,
+          "top5_rate": 0.013333333333333334,
+          "target_prob": 0.0017393967850754658,
+          "disruption_rate": 0.30601092896174864,
+          "n": 300
+        },
+        "adversarial sticker": {
+          "success_rate": 0.08,
+          "top5_rate": 0.18666666666666668,
+          "target_prob": 0.0343230930964152,
+          "disruption_rate": 0.32786885245901637,
+          "n": 300
+        }
+      },
+      "headline": {
+        "success_rate": 0.08,
+        "top5_rate": 0.18666666666666668,
+        "target_prob": 0.0343230930964152,
+        "disruption_rate": 0.32786885245901637,
+        "n": 300
+      }
+    }
+  },
+  "skipped_models": [],
+  "explanation": {
+    "share_on_sticker": 0.6044034361839294,
+    "sticker_area": 0.09240379184484482,
+    "method": "Grad-CAM",
+    "ratio": 6.540894308739874
+  },
+  "stealth": {
+    "changed_fraction": 1.0
+  },
+  "seconds": 0.0,
+  "ethics_notice": "adAI Sticker Lab is a teaching tool. Adversarial stickers show how fragile image classifiers are; they must not be used to deceive safety-critical systems or to harm, harass, or misidentify people. Targets that could enable those harms are blocked."
+}

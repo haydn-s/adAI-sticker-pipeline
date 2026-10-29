@@ -16,7 +16,38 @@ understands what it sees.
 > Built for AIPI 590 (Explainable & Responsible AI) at Duke. See the
 > [roadmap](docs/ROADMAP.md) for the research question and milestones.
 
-<!-- RESULTS -->
+## First results
+
+A round "toaster" sticker optimized against ResNet-50 (1,000 steps, about 2.5 minutes
+on an Apple M5 Pro), tested on 300 **held-out** photos. In each photo the sticker
+gets a random size (25–45% of the photo's width), rotation, position, tilt,
+lighting, blur, noise and printer color drift:
+
+<p align="center"><img src="docs/examples/toaster-resnet50/sticker.png" width="180" alt="The optimized toaster sticker"></p>
+
+| Condition | ResNet-50 says "toaster" | Correct label lost |
+|---|---|---|
+| No sticker | 0% | 0% |
+| Random-noise sticker, same shape | 0% | 9% |
+| **Adversarial sticker** | **67%** | **61%** |
+
+- **Size matters, rotation doesn't.** Success jumps from near zero to over 50% once
+  the sticker spans about 30% of the photo's width, at every rotation
+  ([grid](docs/examples/toaster-resnet50/fig_grid.png)).
+- **The attack lives in fine detail.** A 2-pixel blur drops success from 75% to 21%,
+  and JPEG quality 40 drops it to 46%. Lighting, noise and color casts barely matter
+  ([sweeps](docs/examples/toaster-resnet50/fig_sweeps.png)).
+- **The model stares at the sticker.** The sticker covers 9% of the photo but gets
+  60% of ResNet-50's Grad-CAM attention for "toaster", 6.5× its share of the image.
+- **It mostly doesn't transfer.** On five models it never saw, success is 5–14%,
+  but it still knocks out the correct label 11–35% of the time
+  ([transfer](docs/examples/toaster-resnet50/fig_transfer.png)).
+
+![Success by rotation and size](docs/examples/toaster-resnet50/fig_grid.png)
+
+Reproduce with `uv run adai-sticker make --target toaster --transfer` (fixed seeds;
+numbers may vary slightly across hardware).
+
 
 ## How it works
 
@@ -28,7 +59,7 @@ The pipeline follows six user-facing steps:
 | 2. Pick a target label | Any of 1,000 ImageNet labels, or free text for CLIP, minus a [blocklist](docs/RESPONSIBLE_USE.md) | `labels.py` |
 | 3. Design the look | Shape (circle, star, heart, …, or your own mask) and colors (free, a palette, or matched to a photo) | `masks.py`, `palette.py` |
 | 4. Optimize | Gradient descent over thousands of simulated photos with random size, rotation, tilt, lighting, blur, noise and printer color drift | `transforms.py`, `optimize.py` |
-| 5. Make it look normal | **Region mode:** keep your photo and hide the attack in a border, stripes or a painted region. **Blend mode:** nudge every pixel of your photo by at most ε | `sticker.py` |
+| 5. Make it look normal | **Region mode:** keep your photo and confine the attack to stripes, a border or a painted region. **Blend mode:** nudge every pixel of your photo by at most ε | `sticker.py` |
 | 6. Get results | Print-ready PNG and PDF sheet, and a report on how well it works and where the model looks | `evaluate.py`, `explain.py`, `report.py` |
 
 Steps 4 and 5 run together: the cover photo is part of the optimization, so making
@@ -54,7 +85,7 @@ Make your first sticker:
 uv run adai-sticker make --target toaster
 ```
 
-Model weights download automatically the first time each model is used (25–600 MB
+Model weights download automatically the first time each model is used (20–350 MB
 each, cached in `~/.cache`).
 
 ## Recipes
@@ -66,9 +97,9 @@ uv run adai-sticker make --target banana --quick
 # Star-shaped, limited to a printable palette, and tested on every other model
 uv run adai-sticker make --target goldfish --shape star --palette candy --transfer
 
-# Region mode: keep your dog photo, hide the attack in a 30% border with matching colors
+# Region mode: keep your dog photo, put the attack in stripes with colors matched to the photo
 uv run adai-sticker make --target toaster --cover-mode region --cover dog.jpg \
-    --region border --region-amount 0.3 --palette auto
+    --region stripes --region-amount 0.4 --palette auto
 
 # Blend mode: your photo, with every pixel moved at most 16/255
 uv run adai-sticker make --target pizza --cover-mode blend --cover dog.jpg --epsilon 0.063

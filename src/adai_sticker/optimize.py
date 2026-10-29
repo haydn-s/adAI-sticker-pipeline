@@ -28,8 +28,8 @@ class AttackConfig:
     tv_weight: float = 0.5
     nps_weight: float = 0.25  # only applied to free-color (non-palette) adversarial pixels
     scene_size: int = 224
-    palette_temperature: tuple[float, float] = (1.0, 0.05)
-    hard_palette_from: float = 0.6  # fraction of steps after which palettes go hard
+    palette_pull: float = 1.0  # max weight pulling free colors toward the palette
+    hard_palette_from: float = 0.5  # fraction of steps after which palette colors snap
     seed: int = 0
     eot: EOTConfig = field(default_factory=EOTConfig)
 
@@ -98,9 +98,6 @@ def optimize_sticker(
         for group in opt.param_groups:
             group["lr"] = _cosine(step, cfg.steps, cfg.lr, cfg.lr * 0.1)
         if sticker.uses_palette:
-            t_start, t_end = cfg.palette_temperature
-            frac = min(1.0, step / max(1, hard_step))
-            sticker.temperature = t_start * (t_end / t_start) ** frac
             sticker.hard = step >= hard_step
 
         bg, _ = backgrounds.sample(cfg.batch_size, cfg.scene_size, device, gen)
@@ -126,6 +123,9 @@ def optimize_sticker(
         loss = attack + cfg.tv_weight * tv
         if use_nps:
             loss = loss + cfg.nps_weight * non_printability(rgb, printable, alpha * sticker.region)
+        if sticker.uses_palette:
+            pull = cfg.palette_pull * min(1.0, step / max(1, hard_step))
+            loss = loss + pull * sticker.palette_distance()
 
         opt.zero_grad(set_to_none=True)
         loss.backward()

@@ -27,6 +27,7 @@ GRID = "#e4e3df"
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 BLUE_RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
 SEQUENTIAL = LinearSegmentedColormap.from_list("blue_ramp", BLUE_RAMP)
+FIG_WIDTH = 9.0  # inches; one width for every figure so text scales the same on the report card
 
 SWEEP_TITLES = {
     "brightness": ("Lighting", "brightness ×"),
@@ -83,7 +84,7 @@ def model_name(key: str) -> str:
 def fig_grid(grid: dict, path: Path, title: str) -> Path:
     _style()
     data = np.array(grid["success_rate"])
-    fig, ax = plt.subplots(figsize=(7.2, 3.6), dpi=150)
+    fig, ax = plt.subplots(figsize=(FIG_WIDTH, 3.8), dpi=150)
     im = ax.imshow(data, cmap=SEQUENTIAL, vmin=0, vmax=1, aspect="auto", origin="lower")
     ax.grid(False)
     ax.set_xticks(range(len(grid["angles"])), [f"{a:g}°" for a in grid["angles"]])
@@ -107,7 +108,7 @@ def fig_sweeps(sweeps: dict, path: Path, title: str) -> Path:
     factors = list(sweeps)
     cols = 4
     rows = (len(factors) + cols - 1) // cols
-    fig, axes = plt.subplots(rows, cols, figsize=(9, 2.3 * rows), dpi=150, sharey=True)
+    fig, axes = plt.subplots(rows, cols, figsize=(FIG_WIDTH, 2.3 * rows), dpi=150, sharey=True)
     axes = np.atleast_1d(axes).flatten()
     for ax, factor in zip(axes, factors, strict=False):
         sw = sweeps[factor]
@@ -146,7 +147,7 @@ def _hbar(ax, labels: list[str], values: list[float], colors: list[str]) -> None
 def fig_transfer(results: dict[str, float], trained_on: list[str], path: Path, title: str) -> Path:
     _style()
     keys = sorted(results, key=lambda k: (k not in trained_on, -results[k]))
-    fig, ax = plt.subplots(figsize=(6.4, 0.45 * len(keys) + 1.3), dpi=150)
+    fig, ax = plt.subplots(figsize=(FIG_WIDTH, 0.4 * len(keys) + 1.3), dpi=150)
     colors = [SERIES[0] if k in trained_on else SERIES[1] for k in keys]
     _hbar(ax, [model_name(k) for k in keys], [results[k] for k in keys], colors)
     ax.set_xlabel("Attack success rate (held-out photos, random conditions)")
@@ -165,7 +166,7 @@ def fig_transfer(results: dict[str, float], trained_on: list[str], path: Path, t
 def fig_controls(controls: dict[str, dict], path: Path, title: str) -> Path:
     _style()
     labels = list(controls)
-    fig, axes = plt.subplots(1, 2, figsize=(9, 0.42 * len(labels) + 1.4), dpi=150, sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(FIG_WIDTH, 0.42 * len(labels) + 1.4), dpi=150, sharey=True)
     _hbar(axes[0], labels, [controls[k]["success_rate"] for k in labels], [SERIES[0]] * len(labels))
     axes[0].set_title("Photo labeled as the target", loc="left", fontsize=10)
     _hbar(axes[1], labels, [controls[k]["disruption_rate"] for k in labels], [SERIES[0]] * len(labels))
@@ -180,7 +181,7 @@ def fig_controls(controls: dict[str, dict], path: Path, title: str) -> Path:
 def fig_training(history: list[dict], path: Path) -> Path:
     _style()
     steps = [h["step"] for h in history]
-    fig, axes = plt.subplots(1, 2, figsize=(9, 2.6), dpi=150)
+    fig, axes = plt.subplots(1, 2, figsize=(FIG_WIDTH, 2.6), dpi=150)
     axes[0].plot(steps, [h["success_rate"] for h in history], color=SERIES[0], lw=2)
     axes[0].set_title("Success on training batches", loc="left", fontsize=10)
     axes[0].set_ylim(0, 1.02)
@@ -196,24 +197,32 @@ def fig_training(history: list[dict], path: Path) -> Path:
 
 
 def fig_gradcam(clean, clean_cams, stickered, sticker_cams, captions, path: Path, method: str) -> Path:
-    """Two rows (without / with sticker); each example shows the photo and its explanation."""
+    """One row per example: photo and explanation without, then with, the sticker."""
     _style()
     n = len(clean)
-    fig, axes = plt.subplots(2, 2 * n, figsize=(2.6 * 2 * n, 6.0), dpi=150)
+    fig, axes = plt.subplots(n, 4, figsize=(FIG_WIDTH, 2.45 * n + 0.5), dpi=150, squeeze=False)
+    headers = ("Without sticker", f"{method}: its answer", "With sticker", f"{method}: target")
     for i in range(n):
-        for row, (imgs, cams, cap) in enumerate(((clean, clean_cams, captions[i][0]),
-                                                  (stickered, sticker_cams, captions[i][1]))):
-            img = imgs[i].permute(1, 2, 0).cpu().numpy()
-            axes[row, 2 * i].imshow(img)
-            axes[row, 2 * i].set_title(cap, fontsize=11, loc="left", color=TEXT)
-            axes[row, 2 * i + 1].imshow(img)
-            axes[row, 2 * i + 1].imshow(cams[i].cpu().numpy(), cmap="magma", alpha=0.55, vmin=0, vmax=1)
-            axes[row, 2 * i + 1].set_title(method, fontsize=11, loc="left", color=TEXT_2)
-    for ax in axes.flatten():
-        ax.axis("off")
-    fig.text(0.005, 0.74, "Without\nsticker", fontsize=13, color=TEXT, va="center", fontweight="bold")
-    fig.text(0.005, 0.27, "With\nsticker", fontsize=13, color=TEXT, va="center", fontweight="bold")
-    fig.tight_layout(rect=(0.06, 0, 1, 1))
+        panels = (
+            (clean[i], None, captions[i][0]),
+            (clean[i], clean_cams[i], ""),
+            (stickered[i], None, captions[i][1]),
+            (stickered[i], sticker_cams[i], ""),
+        )
+        for j, (img, cam, cap) in enumerate(panels):
+            ax = axes[i, j]
+            ax.imshow(img.permute(1, 2, 0).cpu().numpy())
+            if cam is not None:
+                ax.imshow(cam.cpu().numpy(), cmap="magma", alpha=0.55, vmin=0, vmax=1)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            if i == 0:
+                ax.set_title(headers[j], fontsize=10, loc="left", color=TEXT, fontweight="bold")
+            if cap:
+                ax.set_xlabel(cap, fontsize=8, color=TEXT_2, loc="left")
+    fig.tight_layout()
     fig.savefig(path)
     plt.close(fig)
     return path

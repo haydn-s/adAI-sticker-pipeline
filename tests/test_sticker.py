@@ -74,6 +74,15 @@ def test_blend_mode_respects_epsilon(cover_path):
     assert float((rgb - s.cover).abs().max()) <= eps + 1e-6
     stats = s.perturbation_stats()
     assert stats["max_abs_change"] <= eps + 1e-6
+    assert 0 < stats["ssim"] < 1
+
+
+def test_ssim_of_identical_images_is_one(cover_path):
+    from adai_sticker.sticker import load_image, ssim
+
+    img = load_image(cover_path, 48)[None]
+    assert ssim(img, img) == pytest.approx(1.0, abs=1e-5)
+    assert ssim(img, torch.rand_like(img)) < 0.5
 
 
 def test_auto_palette_requires_cover():

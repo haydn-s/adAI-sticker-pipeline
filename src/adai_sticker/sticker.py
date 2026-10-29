@@ -10,9 +10,10 @@ optimizer is allowed to change depends on the design:
   bounded by ``epsilon`` per pixel; a larger budget is stronger but less natural.
 
 Adversarial pixels are either free RGB or constrained to a color palette. Palette
-stickers are optimized with a softmax relaxation whose temperature is annealed,
-then switched to hard (one color per pixel) with a straight-through estimator so
-the final printed sticker is exactly what was evaluated.
+stickers are optimized in free RGB while a penalty pulls colors toward the
+palette; then every pixel snaps to its nearest palette color in the forward pass,
+with a straight-through estimator carrying gradients back to the free colors.
+The final printed sticker is therefore exactly what was evaluated.
 """
 
 from __future__ import annotations
@@ -43,8 +44,8 @@ class StickerDesign:
     palette_size: int = 8  # colors extracted when palette == "auto"
     cover_mode: CoverMode = "none"
     cover_image: str | None = None
-    region: str = "border"  # region preset or path to a mask image (region mode)
-    region_amount: float = 0.3
+    region: str = "stripes"  # region preset or path to a mask image (region mode)
+    region_amount: float = 0.4
     epsilon: float = 0.12  # per-pixel L-infinity budget (blend mode), in [0, 1] units
 
     def validate(self) -> None:
@@ -75,6 +76,22 @@ def load_image(path: str | Path, size: int) -> torch.Tensor:
     return torch.from_numpy(np.asarray(img, dtype=np.float32) / 255.0).permute(2, 0, 1)
 
 
+def ssim(a: torch.Tensor, b: torch.Tensor, weight: torch.Tensor | None = None) -> float:
+    """Mean structural similarity (Wang et al., 2004) with an 11px Gaussian window."""
+    from .transforms import gaussian_blur
+
+    c1, c2 = 0.01**2, 0.03**2
+    mu_a, mu_b = gaussian_blur(a, 1.5), gaussian_blur(b, 1.5)
+    var_a = gaussian_blur(a * a, 1.5) - mu_a**2
+    var_b = gaussian_blur(b * b, 1.5) - mu_b**2
+    cov = gaussian_blur(a * b, 1.5) - mu_a * mu_b
+    s = ((2 * mu_a * mu_b + c1) * (2 * cov + c2)) / ((mu_a**2 + mu_b**2 + c1) * (var_a + var_b + c2))
+    if weight is None:
+        return float(s.mean())
+    w = weight.expand_as(s)
+    return float((s * w).sum() / w.sum().clamp_min(1.0))
+
+
 def _logit(p: torch.Tensor) -> torch.Tensor:
     p = p.clamp(1e-4, 1 - 1e-4)
     return torch.log(p / (1 - p))
@@ -99,15 +116,13 @@ class Sticker(nn.Module):
 
         palette = self._resolve_palette(cover)
         self.register_buffer("palette", palette if palette is not None else torch.empty(0, 3))
-        self.temperature = 1.0
         self.hard = False
 
         if design.cover_mode == "blend":
             # delta = epsilon * tanh(w); start from the untouched cover photo.
             self.param = nn.Parameter(torch.zeros(1, 3, res, res))
-        elif palette is not None:
-            self.param = nn.Parameter(torch.randn(1, len(palette), res, res, generator=gen) * 0.5)
         else:
+            # Free RGB in logit space (palette stickers quantize these colors).
             init = torch.rand(1, 3, res, res, generator=gen) * 0.8 + 0.1
             self.param = nn.Parameter(_logit(init))
 
@@ -125,18 +140,29 @@ class Sticker(nn.Module):
 
     # -- rendering ---------------------------------------------------------
 
-    def _palette_weights(self, logits: torch.Tensor, hard: bool) -> torch.Tensor:
-        soft = F.softmax(logits / self.temperature, dim=1)
-        if not hard:
-            return soft
-        one_hot = F.one_hot(logits.argmax(1), num_classes=logits.shape[1]).permute(0, 3, 1, 2)
-        return one_hot.to(soft.dtype) - soft.detach() + soft  # straight-through
+    def quantize(self, rgb: torch.Tensor) -> torch.Tensor:
+        """Snap every pixel to its nearest palette color."""
+        b, _, h, w = rgb.shape
+        pixels = rgb.permute(0, 2, 3, 1).reshape(-1, 3)
+        nearest = torch.cdist(pixels, self.palette).argmin(1)
+        return self.palette[nearest].reshape(b, h, w, 3).permute(0, 3, 1, 2)
 
     def _adversarial_layer(self, param: torch.Tensor, hard: bool) -> torch.Tensor:
-        if self.uses_palette:
-            weights = self._palette_weights(param, hard)
-            return torch.einsum("bkhw,kc->bchw", weights, self.palette)
-        return torch.sigmoid(param)
+        free = torch.sigmoid(param)
+        if not self.uses_palette:
+            return free
+        if not hard:
+            return free
+        snapped = self.quantize(free)
+        if not torch.is_grad_enabled():
+            return snapped  # exact palette colors for export
+        return free + (snapped - free).detach()  # straight-through
+
+    def palette_distance(self) -> torch.Tensor:
+        """Mean distance from the free colors to the palette (pulls colors toward it)."""
+        from .losses import non_printability
+
+        return non_printability(torch.sigmoid(self.param), self.palette, self.mask * self.region)
 
     def forward(self, hard: bool | None = None) -> tuple[torch.Tensor, torch.Tensor]:
         """Render at optimization resolution -> (rgb (1,3,H,W), alpha (1,1,H,W))."""
@@ -178,7 +204,11 @@ class Sticker(nn.Module):
 
     @torch.no_grad()
     def perturbation_stats(self) -> dict[str, float]:
-        """How far the sticker strays from its cover photo (a simple stealth measure)."""
+        """How far the sticker strays from its cover photo (stealth measures).
+
+        ``ssim`` is the structural similarity to the cover photo inside the outline
+        (1.0 = indistinguishable); the other numbers are in [0, 1] pixel units.
+        """
         rgb, alpha = self.forward(hard=True)
         if self.design.cover_mode == "none":
             return {"changed_fraction": 1.0}
@@ -189,6 +219,7 @@ class Sticker(nn.Module):
             "changed_fraction": float((changed * alpha).sum() / inside),
             "mean_abs_change": float(diff.sum() / (inside * 3)),
             "max_abs_change": float(diff.max()),
+            "ssim": ssim(rgb, self.cover, alpha),
         }
 
     # -- persistence -------------------------------------------------------
