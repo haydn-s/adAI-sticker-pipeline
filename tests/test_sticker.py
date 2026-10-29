@@ -43,8 +43,8 @@ def test_palette_hard_render_uses_only_palette_colors():
     rgb, _ = s.render()
     palette = parse_palette("primary")
     pixels = rgb[0].reshape(3, -1).T
-    dist = torch.cdist(pixels, palette).min(1).values
-    assert float(dist.max()) < 1e-4
+    # Exact match (cdist's matmul shortcut has ~1e-4 rounding error, so compare directly).
+    assert (pixels[:, None, :] == palette[None]).all(-1).any(-1).all()
     assert len(palette) == len(PALETTES["primary"])
 
 
