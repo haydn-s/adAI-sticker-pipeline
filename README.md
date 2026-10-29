@@ -88,6 +88,21 @@ uv run adai-sticker make --target toaster
 Model weights download automatically the first time each model is used (20–350 MB
 each, cached in `~/.cache`).
 
+## The web app
+
+The friendliest way in is the guided web app: pick a model, pick a target, design
+the sticker (shape, colors, your own photo), watch it being optimized live, then
+explore the results and download a print sheet.
+
+```bash
+uv sync --extra web
+uv run adai-sticker serve            # then open http://127.0.0.1:8000
+```
+
+Visitors must accept short responsible-use guidance before making a sticker, and
+blocked targets are explained in plain language. `--gallery runs/` shows finished
+stickers, and `--gallery-only` serves a browse-only site that needs no GPU.
+
 ## Recipes
 
 ```bash

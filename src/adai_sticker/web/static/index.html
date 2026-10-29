@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>adAI Sticker Lab</title>
+  <meta name="description" content="Design a sticker that fools an image-recognition AI, and learn why it works.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" data-goto="welcome">adAI <span>Sticker Lab</span></a>
+    <nav class="stepper" aria-label="Steps">
+      <ol>
+        <li><button data-goto="welcome">Welcome</button></li>
+        <li><button data-goto="model" disabled>1 · Model</button></li>
+        <li><button data-goto="target" disabled>2 · Target</button></li>
+        <li><button data-goto="design" disabled>3 · Design</button></li>
+        <li><button data-goto="make" disabled>4 · Make</button></li>
+        <li><button data-goto="results" disabled>5 · Results</button></li>
+      </ol>
+    </nav>
+    <button class="link" data-goto="gallery">Gallery</button>
+  </header>
+
+  <main>
+    <!-- Welcome + responsible use ------------------------------------------------ -->
+    <section id="step-welcome" class="step">
+      <div class="hero">
+        <h1>Make a sticker that fools an AI</h1>
+        <p class="lede">Image-recognition AI can name a thousand kinds of objects in a photo, but it
+          doesn't see the way you do. In about five minutes you'll design a sticker that makes an AI see
+          something that isn't there, and find out why that's possible.</p>
+      </div>
+      <div class="cards three">
+        <div class="card"><h3>Why AI vision can be tricked</h3>
+          <p>Models learn shortcuts: patterns of texture and color that usually go with a label. A sticker
+            can be packed with those patterns.</p></div>
+        <div class="card"><h3>What makes an attack strong</h3>
+          <p>You'll test your sticker at every size, angle and lighting, and on AIs it was never designed
+            for.</p></div>
+        <div class="card"><h3>Where the AI is looking</h3>
+          <p>Heat maps show the AI staring at your sticker instead of the real object in the photo.</p></div>
+      </div>
+
+      <div class="card ethics">
+        <h2>Before you start</h2>
+        <p>Adversarial stickers are real security research, and they can cause real harm. By continuing
+          you agree to:</p>
+        <ul>
+          <li>Use stickers for learning, research, and fun with your own things.</li>
+          <li><strong>Never</strong> use them to fool safety systems: cars, cameras, alarms or content filters.</li>
+          <li><strong>Never</strong> use them to harass, mislabel or embarrass people.</li>
+        </ul>
+        <details>
+          <summary>Some target labels are blocked. Why?</summary>
+          <div id="blocked-list" class="blocked-list"></div>
+        </details>
+        <label class="check"><input type="checkbox" id="ethics-ack"> I understand and agree</label>
+        <div class="actions"><button class="primary" id="start" disabled>Start</button></div>
+      </div>
+      <p class="muted small" id="gallery-only-note" hidden>This site is in gallery mode: you can explore
+        finished stickers, but making new ones is turned off.</p>
+    </section>
+
+    <!-- 1. Model ------------------------------------------------------------------ -->
+    <section id="step-model" class="step" hidden>
+      <h2>Which AI do you want to fool?</h2>
+      <p class="explain">Each of these models learned to recognize objects from over a million labeled photos.
+        They were built in different ways and in different years. Bigger isn't always harder to fool.</p>
+      <div id="model-cards" class="cards three"></div>
+      <div class="actions"><button class="primary" data-next="target" id="model-next" disabled>Next: pick a target</button></div>
+    </section>
+
+    <!-- 2. Target ----------------------------------------------------------------- -->
+    <section id="step-target" class="step" hidden>
+      <h2>What should the AI see?</h2>
+      <p class="explain">Pick something that clearly <em>isn't</em> in your photos. That's what makes the trick
+        convincing. The sticker will try to make the AI say this label no matter what else is in the picture.</p>
+      <div class="chips" id="featured"></div>
+      <div class="search">
+        <label for="label-search">Search all 1,000 labels</label>
+        <input id="label-search" type="search" placeholder="e.g. guitar, pizza, jellyfish" autocomplete="off">
+        <ul id="label-results" class="results"></ul>
+      </div>
+      <div class="search" id="free-text-box" hidden>
+        <label for="free-text">Or, because CLIP reads text, type your own words</label>
+        <div class="row"><input id="free-text" type="text" maxlength="60" placeholder="e.g. a bowl of ramen">
+          <button id="free-text-use">Use this</button></div>
+      </div>
+      <div id="target-status" class="status" aria-live="polite"></div>
+      <div class="actions"><button data-back="model">Back</button>
+        <button class="primary" data-next="design" id="target-next" disabled>Next: design it</button></div>
+    </section>
+
+    <!-- 3. Design ----------------------------------------------------------------- -->
+    <section id="step-design" class="step" hidden>
+      <h2>Design your sticker</h2>
+      <div class="design-grid">
+        <div>
+          <fieldset>
+            <legend>Shape</legend>
+            <div id="shapes" class="shapes"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Make it look normal?</legend>
+            <p class="explain small">A pure attack looks like strange, colorful noise. You can hide it in a photo
+              instead, but the more normal it looks, the weaker it gets. Finding that balance is part of the
+              experiment.</p>
+            <div class="options" id="cover-modes">
+              <label class="option"><input type="radio" name="cover" value="none" checked>
+                <span><strong>No: pure attack</strong><small>The strongest sticker. Every pixel is chosen to fool the AI.</small></span></label>
+              <label class="option"><input type="radio" name="cover" value="region">
+                <span><strong>Hide it in my photo</strong><small>Keep your photo and let the attack use only some areas, like stripes or a border.</small></span></label>
+              <label class="option"><input type="radio" name="cover" value="blend">
+                <span><strong>Blend it into my photo</strong><small>Every pixel of your photo changes a tiny bit. Subtle, but weaker.</small></span></label>
+            </div>
+            <div id="cover-controls" hidden>
+              <label class="file">Your photo (JPEG or PNG, under 10 MB)
+                <input type="file" id="cover-file" accept="image/jpeg,image/png"></label>
+              <div id="region-controls" hidden>
+                <label for="region">Where the attack goes</label>
+                <select id="region"></select>
+                <label for="region-amount">How much of the sticker the attack may use: <output id="region-amount-out"></output></label>
+                <input type="range" id="region-amount" min="0.1" max="0.6" step="0.05" value="0.4">
+                <div class="scale-labels"><span>sneakier</span><span>stronger</span></div>
+              </div>
+              <div id="blend-controls" hidden>
+                <label for="epsilon">How much each pixel may change: <output id="epsilon-out"></output></label>
+                <input type="range" id="epsilon" min="4" max="64" step="4" value="24">
+                <div class="scale-labels"><span>sneakier</span><span>stronger</span></div>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Colors</legend>
+            <div id="palettes" class="palettes"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>How thorough?</legend>
+            <select id="preset"></select>
+            <label class="check"><input type="checkbox" id="test-others" checked> Also test it on the other
+              five AIs (does the trick transfer?)</label>
+          </fieldset>
+        </div>
+        <aside class="preview-card">
+          <h3>Preview</h3>
+          <img id="design-preview" alt="Preview of the sticker design" width="256" height="256">
+          <p class="muted small">Orange stripes show where the attack will be drawn. Everything else stays as
+            you see it.</p>
+        </aside>
+      </div>
+      <div class="actions"><button data-back="target">Back</button>
+        <button class="primary" data-next="make">Next: make it</button></div>
+    </section>
+
+    <!-- 4. Make ------------------------------------------------------------------- -->
+    <section id="step-make" class="step" hidden>
+      <h2>Make the sticker</h2>
+      <div id="make-summary" class="summary"></div>
+      <div class="actions" id="make-actions"><button data-back="design">Back</button>
+        <button class="primary" id="make-go">Make my sticker</button></div>
+      <div id="progress" hidden>
+        <div class="progress-grid">
+          <div class="live">
+            <img id="live-sticker" alt="The sticker as it is being optimized" width="224" height="224">
+            <p class="muted small">Live: the sticker as the computer improves it</p>
+          </div>
+          <div>
+            <p id="progress-message" class="message" aria-live="polite">Starting…</p>
+            <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div id="progress-fill"></div></div>
+            <p class="muted small" id="progress-detail"></p>
+            <h3 class="small-heading">Fooling rate on practice photos</h3>
+            <svg id="curve" viewBox="0 0 320 120" role="img" aria-label="Fooling rate on practice photos over time"></svg>
+            <div class="explain">
+              <p><strong>What's happening?</strong> The computer pastes your sticker into batches of practice
+                photos at random sizes, angles, positions and lighting, then checks what the AI sees. After
+                each batch it nudges every pixel a little in whichever direction makes the AI more likely to
+                say <em id="explain-target">your target</em>.</p>
+              <p>Researchers call this <em>Expectation over Transformation</em>: the sticker gets optimized for
+                the average photo, not one perfect photo, so it keeps working in the real world.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="make-error" class="status bad" hidden></div>
+    </section>
+
+    <!-- 5. Results ---------------------------------------------------------------- -->
+    <section id="step-results" class="step" hidden>
+      <div class="results-hero">
+        <img id="result-sticker" alt="Your finished sticker" width="200" height="200">
+        <div>
+          <p class="eyebrow" id="result-eyebrow"></p>
+          <p class="hero-number" id="result-number"></p>
+          <p id="result-sentence" class="lede"></p>
+          <div class="downloads" id="downloads"></div>
+        </div>
+      </div>
+
+      <h2>Does it work?</h2>
+      <p class="explain">These photos were never used to make the sticker. Each one shows what the AI says with the
+        sticker in place.</p>
+      <figure class="fig"><img id="fig-examples" alt="Held-out photos with the sticker and the AI's answers"></figure>
+      <div class="cards three" id="controls"></div>
+
+      <h2>Where is the AI looking?</h2>
+      <p class="explain" id="attention-sentence"></p>
+      <figure class="fig"><img id="fig-gradcam" alt="Heat maps showing where the AI looks, with and without the sticker"></figure>
+
+      <h2>What makes it fail?</h2>
+      <p class="explain">The sticker was tested at every rotation and size, then under one change at a time:
+        lighting, blur, noise, viewing angle, compression and color tint.</p>
+      <figure class="fig"><img id="fig-grid" alt="Success rate by sticker rotation and size"></figure>
+      <figure class="fig"><img id="fig-sweeps" alt="Success rate under changing photo conditions"></figure>
+
+      <div id="transfer-section">
+        <h2>Does it fool other AIs?</h2>
+        <p class="explain">The sticker was only designed against one model. Here it is against AIs it never saw.</p>
+        <figure class="fig"><img id="fig-transfer" alt="Success rate on other models"></figure>
+      </div>
+
+      <div class="card">
+        <h2>Keep in mind</h2>
+        <ul>
+          <li>These results come from <em>simulated</em> photos. Printed stickers usually work less well. Print
+            the PDF at actual size and try it with a camera.</li>
+          <li>Real systems often use defenses, several models, or human review.</li>
+          <li>Please use your sticker responsibly: never on safety systems, and never to target people.</li>
+        </ul>
+      </div>
+      <div class="actions"><button class="primary" id="again">Make another sticker</button></div>
+    </section>
+
+    <!-- Gallery ------------------------------------------------------------------- -->
+    <section id="step-gallery" class="step" hidden>
+      <h2>Gallery</h2>
+      <p class="explain">Finished stickers. Open one to see its full report.</p>
+      <div id="gallery" class="gallery"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>adAI Sticker Lab is a teaching tool for adversarial AI.
+      <a href="https://github.com/haydn-s/adAI-sticker-pipeline">Source and documentation</a>.</p>
+  </footer>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

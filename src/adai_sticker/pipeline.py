@@ -324,7 +324,13 @@ def make_sticker(
     say: Callable[[str], None] = print,
     on_step: Callable[[StepInfo], None] | None = None,
     evaluate: bool = True,
+    on_start: Callable[[Sticker], None] | None = None,
 ) -> dict:
+    """Optimize, export and evaluate a sticker into ``run_dir``.
+
+    ``on_start`` receives the sticker just before optimization begins, so a UI can
+    render live previews of it from inside ``on_step``.
+    """
     run_dir = Path(run_dir)
     device = torch.device(device) if device is not None else default_device()
     target = resolve_request_target(request)  # raises BlockedTargetError before any work
@@ -336,6 +342,8 @@ def make_sticker(
     train = load_backgrounds("train", request.backgrounds, limit=request.train_images,
                              seed=request.attack.seed)
     sticker = Sticker(request.design, seed=request.attack.seed)
+    if on_start is not None:
+        on_start(sticker)
 
     say(f"Optimizing for {request.attack.steps} steps")
     result = optimize_sticker(sticker, list(models.values()), target, train, request.attack,

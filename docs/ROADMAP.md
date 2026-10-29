@@ -56,7 +56,16 @@ The four evidence layers:
   measure how much success drops.
 - Teaching goal: attacks and defenses are an arms race, and robustness costs accuracy.
 
-### M5: Web app
+### M5: Web app (local version ✅, hosting pending)
+- ✅ `adai-sticker serve`: FastAPI back end with a single-GPU job queue, plus a
+  dependency-free HTML/JS front end. Six-step guided flow, ethics gate, live sticker
+  preview and fooling-rate curve while optimizing, results page with figures and
+  downloads, gallery, and a browse-only mode.
+- ⏳ Hosting: choose a GPU host (e.g. Hugging Face Spaces, Modal) or a gallery-only
+  static deployment, add upload retention and rate limits, and add a moderation
+  model in front of free-text targets.
+
+Original plan:
 - Guided flow that matches the six user-facing steps: pick a model → pick a target
   → design (shape, colors, cover photo, region or blend) → optimize with live
   progress → see the report → download PNG and PDF.
