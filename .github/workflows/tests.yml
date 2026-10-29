@@ -18,8 +18,8 @@ jobs:
         run: |
           uv venv
           uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-          uv pip install -e ".[web]" pytest ruff httpx
+          uv pip install -e ".[web,streamlit]" pytest ruff httpx
       - name: Lint
-        run: uv run --no-sync ruff check src tests
+        run: uv run --no-sync ruff check src tests deploy
       - name: Test
         run: uv run --no-sync pytest

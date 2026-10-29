@@ -1,0 +1,34 @@
+# Streamlit settings for adAI Sticker Lab. Community Cloud reads this file from the
+# repository root even though the entrypoint lives in deploy/.
+
+[server]
+maxUploadSize = 10  # MB; cover photos only
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"  # hide developer options from visitors
+
+# Colors match the FastAPI web app (src/adai_sticker/web/static/style.css). Visitors follow
+# their system's light or dark setting and can switch in the app's settings menu.
+[theme]
+baseRadius = "medium"
+chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
+
+[theme.light]
+primaryColor = "#2a78d6"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f3f2ef"
+textColor = "#0b0b0b"
+borderColor = "#e4e3df"
+linkColor = "#2a78d6"
+
+[theme.dark]
+primaryColor = "#3987e5"
+backgroundColor = "#141413"
+secondaryBackgroundColor = "#262624"
+textColor = "#f0efec"
+borderColor = "#34332f"
+linkColor = "#6da7ec"

@@ -103,6 +103,14 @@ Visitors must accept short responsible-use guidance before making a sticker, and
 blocked targets are explained in plain language. `--gallery runs/` shows finished
 stickers, and `--gallery-only` serves a browse-only site that needs no GPU.
 
+The same app also runs on Streamlit, ready to host on Streamlit Community Cloud for
+user testing. See [docs/DEPLOY.md](docs/DEPLOY.md).
+
+```bash
+uv sync --extra streamlit
+uv run streamlit run deploy/streamlit_app.py
+```
+
 ## Recipes
 
 ```bash
@@ -187,8 +195,9 @@ deliberately out of scope. Read the full policy, threat model and its limitation
 
 ```
 src/adai_sticker/   the library and CLI (see docs/DESIGN.md for a module map)
+deploy/             Streamlit Community Cloud entrypoint and requirements
 tests/              fast offline tests (tiny stand-in model, synthetic photos)
-docs/               design notes, responsible-use policy, roadmap
+docs/               design notes, responsible-use policy, roadmap, hosting guide
 data/               downloaded datasets (git-ignored)
 runs/               generated stickers and reports (git-ignored)
 ```

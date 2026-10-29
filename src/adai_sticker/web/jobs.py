@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import json
 import queue
+import shutil
 import threading
 import time
 import traceback
@@ -45,6 +46,7 @@ class Job:
     error: str | None = None
     created: float = field(default_factory=time.time)
     started: float | None = None
+    optimize_started: float | None = None  # after the model and photos have loaded
     finished: float | None = None
     preview_png: bytes | None = None
     _sticker: Sticker | None = None
@@ -59,6 +61,7 @@ class Job:
             "message": self.message,
             "error": self.error,
             "elapsed": (self.finished or time.time()) - (self.started or time.time()),
+            "eta": self.eta(),
             "target": self.request.target,
             "models": self.request.models,
         }
@@ -67,6 +70,13 @@ class Job:
         if self.status == "done":
             d["results"] = f"/runs/{self.id}/"
         return d
+
+    def eta(self) -> float | None:
+        """Seconds of optimization left, from the pace so far (None until there's a pace)."""
+        if self.status != "optimizing" or self.optimize_started is None or self.step < 5:
+            return None
+        pace = (time.time() - self.optimize_started) / self.step
+        return pace * (self.total_steps - self.step)
 
 
 class JobManager:
@@ -110,6 +120,21 @@ class JobManager:
     def get(self, job_id: str) -> Job | None:
         return self.jobs.get(job_id)
 
+    def prune(self, max_age_hours: float) -> int:
+        """Delete finished runs, uploaded photos included, older than ``max_age_hours``."""
+        cutoff = time.time() - max_age_hours * 3600
+        removed = 0
+        for run_dir in list(self.runs_root.iterdir()):
+            job = self.jobs.get(run_dir.name)
+            if not run_dir.is_dir() or (job is not None and job.finished is None):
+                continue
+            if run_dir.stat().st_mtime < cutoff:
+                shutil.rmtree(run_dir, ignore_errors=True)
+                self.jobs.pop(run_dir.name, None)
+                removed += 1
+        self._order = [j for j in self._order if j in self.jobs]
+        return removed
+
     # -- worker ------------------------------------------------------------
 
     def _work(self) -> None:
@@ -127,6 +152,7 @@ class JobManager:
 
         def on_start(sticker: Sticker) -> None:
             job._sticker = sticker
+            job.optimize_started = time.time()
             self._render_preview(job)
             job.message = "Testing the sticker on practice photos and improving it"
 
@@ -140,7 +166,7 @@ class JobManager:
                 job.message = "Measuring how well it works on photos it has never seen"
 
         def say(msg: str) -> None:
-            if job.status == "evaluating":
+            if job.status == "evaluating" or job.step == 0:
                 job.message = _friendly(msg)
 
         try:
@@ -168,6 +194,9 @@ class JobManager:
 
 
 _FRIENDLY = (
+    ("Target:", "Loading the AI model"),
+    ("Loading background photos", "Loading practice photos"),
+    ("Optimizing for", "Testing the sticker on practice photos and improving it"),
     ("controls", "Comparing against photos with no sticker and a random sticker"),
     ("rotation x scale", "Trying every rotation and size"),
     ("sweep: brightness", "Testing different lighting"),

@@ -242,9 +242,11 @@ def evaluate_sticker(
             skipped.append(key)
             continue
         model = loaded.get(key) or load_model(key, device)
-        loaded[key] = model
+        if key in request.models:
+            loaded[key] = model  # transfer-only models are freed after testing to save memory
         battery = request.full_battery and key in request.models
         evaluation[key] = evaluator.full(model, sticker, sweeps=battery, grid=battery, progress=say)
+        del model
 
     primary = loaded[request.models[0]]
     say("Explaining predictions (Grad-CAM)")

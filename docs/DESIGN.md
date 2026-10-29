@@ -33,7 +33,7 @@ to use it, see the [README](../README.md).
 | `export.py`, `report.py` | Files, figures, report card, Markdown and JSON reports |
 | `pipeline.py` | End-to-end orchestration and run folders |
 | `cli.py` | `adai-sticker` command |
-| `web/` | FastAPI server, single-GPU job queue, static front end (`adai-sticker serve`) |
+| `web/` | Two front ends over shared helpers (`common.py`): the FastAPI server with a static front end (`adai-sticker serve`) and a Streamlit app (`streamlit_ui.py`, see [DEPLOY.md](DEPLOY.md)); one job queue serves both |
 
 ## Key decisions
 
@@ -144,11 +144,13 @@ front end inherits it. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
   free-text target) with seven prompt templates. In a real deployment it would be
   scored against a different label set.
 - **Compute.** Optimization takes a few minutes on a laptop GPU (Apple M-series or
-  CUDA) and much longer on a CPU. The web app runs one sticker at a time; a public
-  deployment needs a hosted GPU or the browse-only gallery mode.
+  CUDA) and much longer on a CPU. The web apps run one sticker at a time. Without a
+  GPU (e.g. Streamlit Community Cloud) they switch to shorter CPU presets, which make
+  weaker stickers; see [DEPLOY.md](DEPLOY.md).
 - **Web app privacy.** Uploaded cover photos and results are stored under
-  `runs/web/<random id>/` and served to anyone who has the link. That's fine for a
-  laptop or a class demo; a public deployment needs a retention policy.
+  `runs/<app>/<random id>/` and served to anyone who has the link. The Streamlit app
+  deletes runs after `ADAI_RUN_TTL_HOURS` and lists only a visitor's own stickers in
+  its gallery.
 
 ## References
 
