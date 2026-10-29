@@ -1,0 +1,1 @@
+"""Adversarial sticker pipeline."""
