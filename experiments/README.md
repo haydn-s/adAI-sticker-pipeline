@@ -7,7 +7,7 @@ Each one writes a folder under `runs/` containing one sub-run per configuration
 | Script | Question | Approx. time (M-series GPU) |
 |---|---|---|
 | `stealth_tradeoff.py` | How much success does a sticker give up as it looks more like a normal photo (region amount, blend ε)? | ~2 min per setting |
-| `transfer_matrix.py` | Do stickers fool models they never saw, and do ensembles help? | ~4–8 min per source |
+| `transfer_matrix.py` | Do stickers fool models they never saw, and do ensembles help? | ~5–15 min per source on an M-series GPU; reuses finished sources (`--fresh` to redo) |
 
 ```bash
 uv run python experiments/stealth_tradeoff.py --target toaster

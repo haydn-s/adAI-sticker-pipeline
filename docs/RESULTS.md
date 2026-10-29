@@ -81,7 +81,53 @@ normal"; a human rating study would be the stronger measure.
 
 ## 2. Transfer and ensembles
 
-*Results pending: the experiment is running.*
+*Does a sticker fool models it was never optimized against, and does optimizing
+against several models at once help?*
+
+Each row is one fully adversarial circle sticker, optimized for 1000 steps against
+the model(s) on the left, then tested on all six models. Starred cells are models the
+sticker was optimized against; the rest are transfer.
+
+![Transfer matrix](results/transfer/fig_transfer_matrix.png)
+
+| Optimized against | ResNet-50 | MobileNet V3 | EfficientNet-B0 | ConvNeXt-T | ViT-B/16 | CLIP |
+|---|---|---|---|---|---|---|
+| ResNet-50 | **71%*** | 4% | 6% | 22% | 4% | 7% |
+| ConvNeXt-Tiny | 39% | 17% | 25% | **83%*** | 20% | 20% |
+| ViT-B/16 | 0% | 0% | 0% | 0% | 1%* | 0% |
+| ResNet-50 + EfficientNet-B0 + ConvNeXt-T | **73%*** | 32% | **68%*** | **69%*** | 29% | 33% |
+
+Controls: with no sticker, or with a random-noise sticker of the same shape, no model
+says "toaster" on any of these photos (0% in every column). So every nonzero transfer
+number above is the sticker's doing.
+
+**Findings**
+
+1. **Single-model stickers transfer weakly, and unevenly.** The ResNet-50 sticker
+   fools ResNet-50 71% of the time but other models only 4–22%. The ConvNeXt
+   sticker transfers better (17–39%). In both directions the closest relative gains
+   most: ConvNeXt from the ResNet sticker (22%), ResNet from the ConvNeXt sticker (39%).
+2. **Ensembles transfer much better at almost no cost.** Optimizing against three CNNs
+   at once keeps 68–73% on each of them (ResNet-50 alone: 71%). On the three models it
+   never saw it reaches 29–33%, against 4–20% for the single-model stickers. This is
+   the usual way real attackers get around not knowing which model is deployed. It's
+   also why "we use a different model" is weak protection on its own.
+3. **Our attack failed against ViT-B/16, even with full access to it.** The sticker
+   optimized against the vision transformer fooled it on 1% of photos. During
+   optimization its target probability stayed around 5% or lower (averaged over 50
+   steps); the CNN stickers reached 50–65%. This is a limitation of our settings, which
+   were tuned on CNNs (learning rate, smoothness penalty, transformations). It isn't
+   evidence that transformers are robust. CLIP is also a vision transformer, and in a
+   separate quick run a CLIP sticker for "a bowl of ramen" fooled it on 74% of photos.
+   Published work reports successful patch attacks on ViTs with methods designed for
+   them (e.g. Patch-Fool, Fu et al., ICLR 2022).
+4. **CLIP loses the right answer easily, so its numbers need the control.** A
+   random-noise sticker alone makes CLIP drop the correct label on 31% of photos,
+   far more than any other model (4–16%). The ensemble sticker's 58% on CLIP is
+   therefore about 27 points of real effect, not 58.
+
+**Caveats.** One target, one seed, one shape, simulated photos, 300 held-out photos
+per cell. The ViT result depends on attack settings we didn't tune for ViTs.
 
 ## 3. Defenses
 
