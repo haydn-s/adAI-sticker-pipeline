@@ -43,6 +43,12 @@ lighting, blur, noise and printer color drift:
   but it still knocks out the correct label 11–35% of the time
   ([transfer](docs/examples/toaster-resnet50/fig_transfer.png)).
 
+- **Defenses cost accuracy, and attackers adapt.** Blurring inputs cuts success to
+  42% for a 5-point accuracy cost, but a sticker re-optimized *through* the blur
+  gets back to 71%. Using the model's own Grad-CAM as a patch detector (gray out
+  where attention is suspiciously concentrated) cuts success to **4%** for the same
+  accuracy cost ([defenses](docs/examples/toaster-resnet50/fig_defense.png)).
+
 ![Success by rotation and size](docs/examples/toaster-resnet50/fig_grid.png)
 
 Reproduce with `uv run adai-sticker make --target toaster --transfer` (fixed seeds;
@@ -118,6 +124,9 @@ uv run adai-sticker models
 # Re-test a saved sticker on more models
 uv run adai-sticker evaluate runs/<run> --transfer
 
+# Defend the model: blur, JPEG and an explanation-based patch detector, plus an adaptive attacker
+uv run adai-sticker defend runs/<run>
+
 # Physical test: score your own photos of the printed sticker
 uv run adai-sticker eval-photos --photos my_photos/ --target toaster --model resnet50
 ```
@@ -141,6 +150,7 @@ Every run writes a self-contained folder in `runs/`:
 | `fig_transfer.png` | Success on models the sticker never saw |
 | `fig_gradcam.png` | Where the model looks, with and without the sticker |
 | `sticker.pt`, `request.json`, `assets/` | Everything needed to reload or re-evaluate the sticker |
+| `defense.md`, `fig_defense.png` | After `adai-sticker defend`: each defense's protection and clean-accuracy cost |
 
 ## How a sticker is evaluated
 

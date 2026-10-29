@@ -138,6 +138,19 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_defend(args: argparse.Namespace) -> int:
+    from .defense import evaluate_defenses
+
+    try:
+        evaluate_defenses(args.run_dir, args.defense, adaptive_steps=args.adaptive_steps,
+                          device=args.device)
+    except ValueError as err:
+        print(f"Error: {err}", file=sys.stderr)
+        return 2
+    print(f"Defense report: {Path(args.run_dir) / 'defense.md'}")
+    return 0
+
+
 def cmd_eval_photos(args: argparse.Namespace) -> int:
     """Physical test: classify real photos of a printed sticker."""
     import torch
@@ -247,6 +260,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--transfer", action="store_true")
     s.add_argument("--device")
     s.set_defaults(func=cmd_evaluate)
+
+    s = sub.add_parser("defend", help="test defenses against a saved sticker, and their cost")
+    s.add_argument("run_dir")
+    s.add_argument("--defense", action="append",
+                   help="blur[:sigma], jpeg[:quality], saliency[:area]; repeat (default: all three)")
+    s.add_argument("--adaptive-steps", type=int, default=300,
+                   help="re-optimize the sticker against the blur defense (0 to skip)")
+    s.add_argument("--device")
+    s.set_defaults(func=cmd_defend)
 
     s = sub.add_parser("eval-photos", help="score real photos of a printed sticker (physical test)")
     s.add_argument("--photos", required=True, help="folder of photos")

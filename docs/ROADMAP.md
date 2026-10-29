@@ -50,11 +50,13 @@ The four evidence layers:
 - **Live webcam demo** for Project Expo: real-time top-5 predictions and a Grad-CAM
   overlay.
 
-### M4: Defense mode
-- Show at least one defense, e.g. adversarial training (an adversarially robust
-  ResNet-50) or a patch-specific defense (masking or detecting the patch region), and
-  measure how much success drops.
+### M4: Defense mode ✅ (first version)
+- `adai-sticker defend`: blur, JPEG, and an explanation-based saliency-mask detector,
+  each reported with its clean-accuracy cost.
+- An adaptive attacker that re-optimizes the sticker through the blur defense.
 - Teaching goal: attacks and defenses are an arms race, and robustness costs accuracy.
+- Next: an adversarially trained (robust) ResNet-50, and an adaptive attack on the
+  saliency detector (e.g. penalizing concentrated attention during optimization).
 
 ### M5: Web app
 - Guided flow that matches the six user-facing steps: pick a model → pick a target

@@ -89,9 +89,13 @@ class Metrics:
     target_prob: float
     disruption_rate: float
     n: int
+    flagged_rate: float | None = None  # detector-style defenses: share of photos flagged
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        if d["flagged_rate"] is None:
+            del d["flagged_rate"]
+        return d
 
 
 def _jpeg(images: torch.Tensor, quality: int) -> torch.Tensor:
@@ -132,6 +136,14 @@ class Evaluator:
     def _predict(self, model: VictimModel, scenes: torch.Tensor) -> torch.Tensor:
         return model(scenes).float().softmax(-1)
 
+    def clean_accuracy(self, model: VictimModel) -> float:
+        """Top-1 accuracy on the held-out photos whose true label is known."""
+        known = self.backgrounds.labels >= 0
+        if not bool(known.any()):
+            return float("nan")
+        preds = self.clean_predictions(model)
+        return float((preds[known] == self.backgrounds.labels[known]).float().mean())
+
     @torch.no_grad()
     def clean_predictions(self, model: VictimModel) -> torch.Tensor:
         if model.key not in self._clean_cache:
@@ -162,7 +174,8 @@ class Evaluator:
         clean = self.clean_predictions(model)
         n_total = min(n_images or len(self.backgrounds), len(self.backgrounds))
 
-        hits = top5 = disrupted = correct_clean = 0
+        hits = top5 = disrupted = correct_clean = flagged = 0
+        has_detector = hasattr(model, "last_flagged")
         prob_sum = 0.0
         for start in range(0, n_total, s.batch_size):
             stop = min(start + s.batch_size, n_total)
@@ -178,6 +191,8 @@ class Evaluator:
             if post is not None:
                 scenes = post(scenes)
             probs = self._predict(model, scenes).cpu()
+            if has_detector:
+                flagged += int(model.last_flagged.sum())
             pred = probs.argmax(-1)
             hits += int((pred == t_idx).sum())
             top5 += int((probs.topk(5, -1).indices == t_idx).any(-1).sum())
@@ -191,6 +206,7 @@ class Evaluator:
             target_prob=prob_sum / n_total,
             disruption_rate=disrupted / max(1, correct_clean),
             n=n_total,
+            flagged_rate=flagged / n_total if has_detector else None,
         )
 
     # -- condition builders ------------------------------------------------

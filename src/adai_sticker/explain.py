@@ -22,8 +22,19 @@ from .models import VictimModel
 from .transforms import gaussian_blur
 
 
-def gradcam(model: VictimModel, images: torch.Tensor, class_idx: int) -> tuple[torch.Tensor, str]:
-    """Return (heatmaps (B, H, W) in [0, 1], method name)."""
+def _class_scores(logits: torch.Tensor, class_idx: int | torch.Tensor) -> torch.Tensor:
+    """Score of one class for every image, or of a per-image class (tensor of shape (B,))."""
+    if isinstance(class_idx, torch.Tensor):
+        return logits.gather(1, class_idx.to(logits.device).view(-1, 1)).squeeze(1)
+    return logits[:, class_idx]
+
+
+def gradcam(model: VictimModel, images: torch.Tensor,
+            class_idx: int | torch.Tensor) -> tuple[torch.Tensor, str]:
+    """Return (heatmaps (B, H, W) in [0, 1], method name).
+
+    ``class_idx`` is one class for the whole batch or a (B,) tensor of per-image classes.
+    """
     if model.gradcam_layer is None:
         return input_saliency(model, images, class_idx), "gradient saliency"
 
@@ -38,7 +49,7 @@ def gradcam(model: VictimModel, images: torch.Tensor, class_idx: int) -> tuple[t
         with torch.enable_grad():
             x = images.detach().clone().requires_grad_(True)
             logits = model(x)
-            logits[:, class_idx].sum().backward()
+            _class_scores(logits, class_idx).sum().backward()
     finally:
         handle.remove()
     act = store["act"]
@@ -49,14 +60,14 @@ def gradcam(model: VictimModel, images: torch.Tensor, class_idx: int) -> tuple[t
     return _normalize(cam.detach()), "Grad-CAM"
 
 
-def input_saliency(model: VictimModel, images: torch.Tensor, class_idx: int, samples: int = 8,
-                   noise: float = 0.05) -> torch.Tensor:
+def input_saliency(model: VictimModel, images: torch.Tensor, class_idx: int | torch.Tensor,
+                   samples: int = 8, noise: float = 0.05) -> torch.Tensor:
     """SmoothGrad: average |d score / d pixel| over noisy copies, then blur."""
     total = torch.zeros(images.shape[0], images.shape[-2], images.shape[-1], device=images.device)
     with torch.enable_grad():
         for _ in range(samples):
             x = (images.detach() + noise * torch.randn_like(images)).clamp(0, 1).requires_grad_(True)
-            model(x)[:, class_idx].sum().backward()
+            _class_scores(model(x), class_idx).sum().backward()
             total += x.grad.abs().amax(1)
     sal = gaussian_blur(total[:, None], 4.0)[:, 0]
     return _normalize(sal)
