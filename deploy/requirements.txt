@@ -1,0 +1,15 @@
+# Dependencies for Streamlit Community Cloud. Community Cloud reads the requirements file
+# next to the entrypoint before the uv.lock at the repository root, so this file decides
+# what gets installed there. Keep it in step with pyproject.toml (tests/test_deploy.py
+# checks this).
+#
+# Community Cloud has no GPU, so PyTorch comes from its CPU-only index: a ~200 MB
+# download instead of several GB of CUDA libraries.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+torchvision>=0.19
+open_clip_torch>=2.26
+numpy>=1.26
+pillow>=10.0
+matplotlib>=3.8
+streamlit>=1.50

@@ -24,6 +24,9 @@ web = [
     "python-multipart>=0.0.9",
     "uvicorn>=0.30",
 ]
+streamlit = [
+    "streamlit>=1.50",
+]
 
 [dependency-groups]
 dev = [
