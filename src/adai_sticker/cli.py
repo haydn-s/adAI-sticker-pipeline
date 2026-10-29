@@ -186,6 +186,25 @@ def cmd_eval_photos(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:  # pragma: no cover - starts a server
+    try:
+        import uvicorn
+
+        from .web.server import create_app
+    except ImportError:
+        print("The web app needs extra packages: uv sync --extra web", file=sys.stderr)
+        return 1
+    app = create_app(
+        runs_root=Path(args.runs_dir),
+        gallery_root=Path(args.gallery) if args.gallery else None,
+        allow_generate=not args.gallery_only,
+        device=args.device,
+    )
+    print(f"adAI Sticker Lab running at http://{args.host}:{args.port}")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="adai-sticker",
@@ -255,6 +274,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", help="CSV path (default <photos>/results_<model>.csv)")
     s.add_argument("--device")
     s.set_defaults(func=cmd_eval_photos)
+    s = sub.add_parser("serve", help="run the web app (needs: uv sync --extra web)")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--runs-dir", default="runs/web", help="where web-made stickers are stored")
+    s.add_argument("--gallery", help="folder of finished runs to show in the gallery")
+    s.add_argument("--gallery-only", action="store_true", help="browse only; no GPU needed")
+    s.add_argument("--device")
+    s.set_defaults(func=cmd_serve)
     return p
 
 
