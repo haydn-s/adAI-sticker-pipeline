@@ -121,7 +121,7 @@ def plot(rows: list[dict], path: Path, args: argparse.Namespace) -> None:
     ax.set_ylim(0, 1.05)
     rpt._pct_axis(ax)
     ax.set_title(f'Stealth vs. strength: "{args.target}" vs. {rpt.model_name(args.model)}', loc="left")
-    ax.legend(loc="lower left")
+    ax.legend(loc="upper right")
     fig.tight_layout()
     fig.savefig(path)
     plt.close(fig)
