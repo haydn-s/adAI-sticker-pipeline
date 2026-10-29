@@ -1,0 +1,91 @@
+"""Explanations: where is the model looking when the sticker fools it?
+
+Grad-CAM (Selvaraju et al., 2017) highlights the image regions that most
+increased the score of a class. For convolutional models we use the last
+convolutional block. Transformers (ViT, CLIP) have no such feature map, so we
+fall back to SmoothGrad-style input-gradient saliency.
+
+The *attention share* turns the picture into a number: the fraction of the
+explanation's mass that falls on the sticker, compared with the fraction of the
+image the sticker covers. A share far above the area fraction means the sticker
+is hijacking the model's attention.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+
+import torch
+import torch.nn.functional as F
+
+from .models import VictimModel
+from .transforms import gaussian_blur
+
+
+def gradcam(model: VictimModel, images: torch.Tensor, class_idx: int) -> tuple[torch.Tensor, str]:
+    """Return (heatmaps (B, H, W) in [0, 1], method name)."""
+    if model.gradcam_layer is None:
+        return input_saliency(model, images, class_idx), "gradient saliency"
+
+    store: dict[str, torch.Tensor] = {}
+
+    def hook(_module, _inp, out):
+        out.retain_grad()
+        store["act"] = out
+
+    handle = model.gradcam_layer.register_forward_hook(hook)
+    try:
+        with torch.enable_grad():
+            x = images.detach().clone().requires_grad_(True)
+            logits = model(x)
+            logits[:, class_idx].sum().backward()
+    finally:
+        handle.remove()
+    act = store["act"]
+    grad = act.grad
+    weights = grad.mean(dim=(2, 3), keepdim=True)
+    cam = F.relu((weights * act).sum(1, keepdim=True))
+    cam = F.interpolate(cam, size=images.shape[-2:], mode="bilinear", align_corners=False)[:, 0]
+    return _normalize(cam.detach()), "Grad-CAM"
+
+
+def input_saliency(model: VictimModel, images: torch.Tensor, class_idx: int, samples: int = 8,
+                   noise: float = 0.05) -> torch.Tensor:
+    """SmoothGrad: average |d score / d pixel| over noisy copies, then blur."""
+    total = torch.zeros(images.shape[0], images.shape[-2], images.shape[-1], device=images.device)
+    with torch.enable_grad():
+        for _ in range(samples):
+            x = (images.detach() + noise * torch.randn_like(images)).clamp(0, 1).requires_grad_(True)
+            model(x)[:, class_idx].sum().backward()
+            total += x.grad.abs().amax(1)
+    sal = gaussian_blur(total[:, None], 4.0)[:, 0]
+    return _normalize(sal)
+
+
+def _normalize(maps: torch.Tensor) -> torch.Tensor:
+    flat = maps.flatten(1)
+    lo = flat.min(1).values[:, None, None]
+    hi = flat.max(1).values[:, None, None]
+    return (maps - lo) / (hi - lo).clamp_min(1e-8)
+
+
+@dataclass
+class AttentionShare:
+    share_on_sticker: float  # fraction of explanation mass on the sticker
+    sticker_area: float  # fraction of the image the sticker covers
+    method: str
+
+    @property
+    def ratio(self) -> float:
+        return self.share_on_sticker / max(self.sticker_area, 1e-8)
+
+    def to_dict(self) -> dict:
+        return {**asdict(self), "ratio": self.ratio}
+
+
+def attention_share(cams: torch.Tensor, scene_alpha: torch.Tensor, method: str) -> AttentionShare:
+    a = scene_alpha[:, 0] if scene_alpha.dim() == 4 else scene_alpha
+    mass = cams.flatten(1).sum(1).clamp_min(1e-8)
+    on = (cams * a).flatten(1).sum(1) / mass
+    area = a.flatten(1).mean(1)
+    return AttentionShare(float(on.mean()), float(area.mean()), method)
