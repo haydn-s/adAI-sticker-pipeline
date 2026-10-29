@@ -136,7 +136,8 @@ def _hbar(ax, labels: list[str], values: list[float], colors: list[str]) -> None
     y = np.arange(len(labels))
     ax.barh(y, values, height=0.5, color=colors)
     ax.set_yticks(y, labels)
-    ax.invert_yaxis()
+    if not ax.yaxis_inverted():  # shared y-axes would otherwise flip back
+        ax.invert_yaxis()
     ax.set_xlim(0, 1.12)
     _pct_axis(ax, "x")
     ax.grid(axis="y", visible=False)
