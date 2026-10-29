@@ -48,9 +48,14 @@ def run(args: argparse.Namespace) -> None:
             eval_models=[m for m in eval_models if m not in models],
             eval=EvalSettings(n_images=args.eval_images), full_battery=False,
         )
-        print(f"\n=== source: {source} ===", flush=True)
-        summary = make_sticker(request, out / source.replace("+", "_"),
-                               say=lambda m: print("  " + m, flush=True))
+        run_dir = out / source.replace("+", "_")
+        saved = run_dir / "report.json"
+        if saved.exists() and not args.fresh:  # finished in an earlier, interrupted run
+            print(f"\n=== source: {source} (reusing {saved}) ===", flush=True)
+            summary = json.loads(saved.read_text())
+        else:
+            print(f"\n=== source: {source} ===", flush=True)
+            summary = make_sticker(request, run_dir, say=lambda m: print("  " + m, flush=True))
         matrix[source] = {k: v["headline"]["success_rate"] for k, v in summary["evaluation"].items()}
         for key, ev in summary["evaluation"].items():
             rows.append({"source": source, "eval_model": key, "seen": key in models,
@@ -106,6 +111,8 @@ def main() -> None:
     p.add_argument("--eval-images", type=int, default=300)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", default="runs/exp-transfer")
+    p.add_argument("--fresh", action="store_true",
+                   help="remake every sticker instead of reusing finished ones in --out")
     run(p.parse_args())
 
 
