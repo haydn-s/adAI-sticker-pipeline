@@ -40,7 +40,12 @@ The four evidence layers:
 - Repeat over seeds and targets; report means and spread.
 - Output: `experiments/` scripts plus `docs/RESULTS.md`, with figures generated from code.
 
-### M3: Physical testing and live demo
+### M3: Physical testing and live demo (tooling ✅, photo shoot pending)
+- ✅ `adai-sticker demo`: live webcam view with top-5 guesses, a FOOLED banner, a
+  Grad-CAM overlay, and frame saving for scoring.
+- ✅ `eval-photos --meta`: per-condition breakdowns from a shoot CSV.
+- ✅ Written protocol: [PHYSICAL_TESTING.md](PHYSICAL_TESTING.md).
+- ⏳ Run the shoot and compare with the simulator.
 - Printing protocol (paper, printer, sizes) and photo protocol (distances, angles,
   lighting), documented so others can repeat it.
 - Score photos with `eval-photos`; compare physical success with the simulator's
