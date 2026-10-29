@@ -30,6 +30,7 @@ to use it, see the [README](../README.md).
 | `optimize.py` | The optimization loop, with progress callbacks for UIs |
 | `evaluate.py` | The evaluation battery |
 | `explain.py` | Grad-CAM / gradient saliency and the attention-share metric |
+| `defense.py` | Blur, JPEG and saliency-mask defenses; clean-accuracy cost; adaptive attacker |
 | `export.py`, `report.py` | Files, figures, report card, Markdown and JSON reports |
 | `pipeline.py` | End-to-end orchestration and run folders |
 | `cli.py` | `adai-sticker` command |
@@ -124,6 +125,24 @@ colors.
   compared with the sticker's share of the image. This puts a number on "the model is
   staring at the sticker".
 
+### Defenses and their cost
+`adai-sticker defend` wraps the attacked model in a defense and re-runs the same
+measurements. Every defense is judged on **two** numbers: the drop in sticker
+success and the drop in accuracy on ordinary photos. Defending is never free.
+
+- **Blur / JPEG** (input purification): the condition sweeps show the attack lives
+  in fine detail, so smoothing it away weakens the sticker. It also smooths away
+  real detail.
+- **Saliency mask** (explanations as a detector): a sticker makes Grad-CAM attention
+  unusually concentrated. When the share of attention in the top 12% of pixels
+  exceeds a threshold, that region is grayed out and the photo is classified again.
+  The threshold is calibrated on *training* photos so about 10% of clean photos are
+  masked. Calibrating on training photos avoids tuning on the test set.
+- **Adaptive attacker**: blur is differentiable, so the sticker can be re-optimized
+  *through* the defense, starting from the original sticker. Defenses evaluated only
+  against non-adaptive attacks are known to overstate robustness (Athalye, Carlini &
+  Wagner, 2018; Tramèr et al., 2020).
+
 ### Safety in the core
 The target-label policy runs in `make_sticker` before any model is loaded, so every
 front end inherits it. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
@@ -159,4 +178,8 @@ front end inherits it. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 - Radford et al. *Learning Transferable Visual Models From Natural Language Supervision (CLIP).* ICML 2021.
 - Goh et al. *Multimodal Neurons in Artificial Neural Networks.* Distill 2021.
 - Xiang et al. *PatchGuard.* USENIX Security 2021.
+- Naseer, Khan, Porikli. *Local Gradients Smoothing: Defense against Localized Adversarial Attacks.* WACV 2019.
+- Tarchoun et al. *Jedi: Entropy-based Localization and Removal of Adversarial Patches.* CVPR 2023.
+- Athalye, Carlini, Wagner. *Obfuscated Gradients Give a False Sense of Security.* ICML 2018.
+- Tramèr, Carlini, Brendel, Madry. *On Adaptive Attacks to Adversarial Example Defenses.* NeurIPS 2020.
 - Howard. *Imagenette.* fast.ai, 2019.

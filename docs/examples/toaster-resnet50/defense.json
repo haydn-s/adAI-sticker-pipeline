@@ -1,0 +1,47 @@
+{
+  "target": {
+    "label": "toaster",
+    "imagenet_index": 859
+  },
+  "model": "resnet50",
+  "rows": [
+    {
+      "defense": "none",
+      "attacker": "original sticker",
+      "clean_accuracy": 0.8628158569335938,
+      "success_rate": 0.6666666666666666,
+      "disruption_rate": 0.6108786610878661
+    },
+    {
+      "defense": "blur \u03c3=1.5",
+      "attacker": "original sticker",
+      "clean_accuracy": 0.8122743964195251,
+      "success_rate": 0.4166666666666667,
+      "disruption_rate": 0.4088888888888889
+    },
+    {
+      "defense": "blur \u03c3=1.5",
+      "attacker": "adaptive attacker",
+      "clean_accuracy": 0.8122743964195251,
+      "success_rate": 0.71,
+      "disruption_rate": 0.6533333333333333
+    },
+    {
+      "defense": "JPEG q=50",
+      "attacker": "original sticker",
+      "clean_accuracy": 0.8194946050643921,
+      "success_rate": 0.41333333333333333,
+      "disruption_rate": 0.3876651982378855
+    },
+    {
+      "defense": "saliency mask",
+      "attacker": "original sticker",
+      "clean_accuracy": 0.8158844709396362,
+      "success_rate": 0.04,
+      "disruption_rate": 0.17256637168141592,
+      "flagged_on_sticker": 0.6933333333333334,
+      "flagged_on_clean": 0.12333333333333334
+    }
+  ],
+  "adaptive_steps": 300
+}
