@@ -51,19 +51,42 @@ checks that `deploy/requirements.txt` stays in step with `pyproject.toml`.
 ## What visitors get on Community Cloud
 
 Community Cloud gives an app about **2 CPU cores and up to 2.7 GB of memory, with no
-GPU**. The Streamlit docs give these limits as approximate. The app detects the CPU
-and switches to lighter run lengths:
+GPU**. The Streamlit docs give these limits as approximate. The app detects the
+missing GPU and adapts in three ways.
 
-| Preset | Steps | Photos per step | Test photos | Test grid |
+**Only MobileNet V3 can be attacked.** It makes a working sticker in minutes. The
+other five models still appear, marked "needs a GPU". Stickers are still *tested* on
+them when "Also test on the other 5 AIs" is ticked. Optimizing against them on CPU
+doesn't work well: in calibration runs, EfficientNet-B0 was 5× slower per step than
+MobileNet V3 and reached only ~17% after 300 steps (11.5 minutes). ResNet-50 was
+still near 0% after 400 steps of 16 photos (22 minutes). Set `ADAI_MODELS=all` to
+allow every model anyway. CLIP's free-text targets need CLIP, so they need a GPU too.
+
+**Lighter run lengths:**
+
+| Preset | Steps | Photos per step | Test photos | Rotation × size grid |
 |---|---|---|---|---|
-| Quick (GPU) | 400 | 24 | 150 | 13 angles × 8 sizes |
-| Quick (CPU) | CPU_QUICK_STEPS | CPU_QUICK_BATCH | 48 | 7 angles × 4 sizes |
-| Thorough (CPU) | CPU_STD_STEPS | CPU_STD_BATCH | 96 | 7 angles × 4 sizes |
+| Quick (GPU) | 400 | 24 | 150 | 13 × 8 |
+| Standard (GPU) | 1000 | 24 | 300 | 13 × 8 |
+| Quick (CPU) | 300 | 12 | 48 | 7 × 4 |
+| Thorough (CPU) | 500 | 16 | 96 | 7 × 4 |
 
-CALIBRATION_NOTES
+**Transfer testing is off by default** because it adds several minutes.
 
-On CPU, model cards are tagged fast, medium or slow. "Also test on the other 5 AIs" is
-off by default there, because it adds several minutes.
+How the CPU presets were chosen, with MobileNet V3 (unless noted) on this project's Mac,
+limited to two CPU threads:
+
+| Steps × photos per step | Fooling rate on practice photos at the end | Optimization time |
+|---|---|---|
+| 200 × 8 | ~0% (never got going) | ~2 min |
+| 300 × 12 | ~36%, still rising | 2.3 min |
+| 400 × 16 | ~45% | not timed cleanly (ran alongside others) |
+| 300 × 12, EfficientNet-B0 | ~17% | 11.5 min |
+
+Community Cloud's shared cores are likely slower than a recent Mac's. That hasn't been
+measured yet, so time the first sticker after deploying. The app shows a live
+time-left estimate during optimization. CPU stickers are weaker than GPU ones; the
+results page reports their real success rate on held-out photos.
 
 The details:
 
@@ -95,6 +118,7 @@ app's Secrets as top-level keys; Streamlit exposes those as environment variable
 |---|---|---|
 | `ADAI_GALLERY_ONLY` | off | `1` = browse finished stickers only; nothing is computed |
 | `ADAI_DEVICE` | auto | `cpu`, `cuda` or `mps`; auto picks CUDA, then Apple MPS, then CPU |
+| `ADAI_MODELS` | auto | models visitors may attack, comma-separated, or `all`; auto = all with a GPU, only MobileNet V3 on CPU |
 | `ADAI_MAX_QUEUE` | 4 | stickers allowed to wait in line |
 | `ADAI_RUN_TTL_HOURS` | 24 | delete stickers and uploaded photos after this many hours |
 | `ADAI_SHOW_ALL_RUNS` | off | `1` = the gallery lists every sticker on the server (useful for a live demo) |
@@ -125,7 +149,7 @@ demo.
 - **Build fails resolving `torch`.** Check that `deploy/requirements.txt` still starts
   with the `--extra-index-url https://download.pytorch.org/whl/cpu` line.
 - **"Oh no" or a restart in the middle of a sticker.** The app probably ran out of memory.
-  The largest models (ViT-B/16 and CLIP) plus transfer testing are the heaviest load.
+  Transfer testing loads every model in turn, including ViT-B/16 and CLIP (the largest).
   Check the logs under **Manage app**. Consider lowering `ADAI_MAX_QUEUE` or switching
   to gallery-only mode.
 - **A results link says the sticker is gone.** The app restarted or the run expired;

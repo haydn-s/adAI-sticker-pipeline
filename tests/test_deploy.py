@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from adai_sticker.optimize import StepInfo
+from adai_sticker.pipeline import StickerRequest
 from adai_sticker.web import common
 from adai_sticker.web.jobs import JobManager
 
@@ -53,3 +55,27 @@ def test_prune_removes_old_finished_runs(tmp_path):
     os.utime(old_dir, (stale, stale))
     assert jobs.prune(max_age_hours=24) == 1
     assert not old_dir.exists() and (tmp_path / new_id).exists()
+
+
+def test_progress_through_evaluation(tmp_path):
+    seen = []
+
+    def fake_make(request, run_dir, say, on_step, **_):
+        job = jobs.get(run_dir.name)
+        say("Target: toaster  |  models: resnet50  |  device: cpu")
+        seen.append(job.message)
+        on_step(StepInfo(10, 10, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0))
+        say("[resnet50] sweep: blur")
+        seen.append((job.status, job.message, job.eval_progress))
+        return {}
+
+    jobs = JobManager(tmp_path, device="cpu", make_fn=fake_make)
+    job_id, run_dir = jobs.new_job_dir()
+    job = jobs.submit(job_id, run_dir, StickerRequest(target="toaster"))
+    deadline = time.time() + 10
+    while job.status not in ("done", "failed") and time.time() < deadline:
+        time.sleep(0.05)
+    assert job.status == "done", job.error
+    assert seen[0] == "Loading the AI model"
+    status, message, progress = seen[1]
+    assert status == "evaluating" and message == "Testing blurry photos" and 0.3 < progress < 0.5

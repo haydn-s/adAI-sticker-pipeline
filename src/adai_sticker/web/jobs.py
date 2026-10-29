@@ -47,6 +47,7 @@ class Job:
     created: float = field(default_factory=time.time)
     started: float | None = None
     optimize_started: float | None = None  # after the model and photos have loaded
+    eval_progress: float = 0.0  # share of the evaluation stages finished
     finished: float | None = None
     preview_png: bytes | None = None
     _sticker: Sticker | None = None
@@ -62,6 +63,7 @@ class Job:
             "error": self.error,
             "elapsed": (self.finished or time.time()) - (self.started or time.time()),
             "eta": self.eta(),
+            "eval_progress": self.eval_progress,
             "target": self.request.target,
             "models": self.request.models,
         }
@@ -105,12 +107,14 @@ class JobManager:
 
     def submit(self, job_id: str, run_dir: Path, request: StickerRequest) -> Job:
         job = Job(job_id, request, run_dir, total_steps=request.attack.steps)
+        self.jobs[job_id] = job  # register before the worker can pick it up
+        self._order.append(job_id)
         try:
             self._queue.put_nowait(job)
         except queue.Full as err:
+            del self.jobs[job_id]
+            self._order.remove(job_id)
             raise QueueFullError("The sticker queue is full; please try again in a few minutes.") from err
-        self.jobs[job_id] = job
-        self._order.append(job_id)
         return job
 
     def position(self, job_id: str) -> int | None:
@@ -168,6 +172,10 @@ class JobManager:
         def say(msg: str) -> None:
             if job.status == "evaluating" or job.step == 0:
                 job.message = _friendly(msg)
+            if job.status == "evaluating":
+                for i, stage in enumerate(_EVAL_STAGES):
+                    if stage in msg:
+                        job.eval_progress = max(job.eval_progress, i / len(_EVAL_STAGES))
 
         try:
             self.make_fn(job.request, job.run_dir, device=self.device, say=say, on_step=on_step,
@@ -209,6 +217,11 @@ _FRIENDLY = (
     ("Grad-CAM", "Finding where the model looks"),
     ("figures", "Drawing the report"),
 )
+
+
+# Evaluation stages (everything after the three loading messages) in the order the
+# pipeline reports them, for the progress bar.
+_EVAL_STAGES = tuple(key for key, _ in _FRIENDLY[3:])
 
 
 def _friendly(msg: str) -> str:

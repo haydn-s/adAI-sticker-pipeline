@@ -11,6 +11,8 @@ Cloud, top-level secrets become environment variables):
 
     ADAI_GALLERY_ONLY=1      only browse finished stickers; nothing is computed
     ADAI_DEVICE=cpu          compute device (default: CUDA, then Apple MPS, then CPU)
+    ADAI_MODELS              models visitors may attack, comma-separated, or "all"
+                             (default: all with a GPU; only MobileNet V3 on CPU)
     ADAI_RUNS_DIR            where new stickers are written (default runs/streamlit)
     ADAI_GALLERY_DIR         finished examples to show (default docs/examples)
     ADAI_BACKGROUNDS         practice photos: a folder, or "synthetic" (default Imagenette)
@@ -60,11 +62,10 @@ from .jobs import JobManager, QueueFullError
 ACCENT = SERIES[0]
 RUN_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
-# Relative training cost on CPU (forward + backward FLOPs), for speed hints without a GPU.
-CPU_SPEED = {
-    "mobilenet_v3_large": "fast", "efficientnet_b0": "fast", "resnet50": "medium",
-    "convnext_tiny": "medium", "clip-vit-b-32": "medium", "vit_b_16": "slow",
-}
+# Models that make a working sticker on two CPU cores in a few minutes. In calibration runs
+# (12-16 photos per step), EfficientNet-B0 was 5x slower per step than MobileNet V3 and
+# reached ~17% after 300 steps; ResNet-50 was still near 0% after 400.
+CPU_MODELS = ("mobilenet_v3_large",)
 
 
 @dataclass(frozen=True)
@@ -77,20 +78,29 @@ class Settings:
     max_queue: int
     ttl_hours: float
     show_all_runs: bool
+    models: tuple[str, ...]  # models visitors may optimize against
 
     @classmethod
     def from_env(cls) -> Settings:
         env = os.environ.get
         flag = lambda name: env(name, "").strip().lower() in ("1", "true", "yes")  # noqa: E731
+        device = torch.device(env("ADAI_DEVICE") or default_device())
+        models = env("ADAI_MODELS", "").replace(" ", "")
+        if models == "all" or (not models and device.type != "cpu"):
+            allowed = tuple(available_models())
+        else:
+            allowed = tuple(m for m in (models.split(",") if models else CPU_MODELS)
+                            if m in MODEL_INFO)
         return cls(
             gallery_only=flag("ADAI_GALLERY_ONLY"),
-            device=torch.device(env("ADAI_DEVICE") or default_device()),
+            device=device,
             runs_root=Path(env("ADAI_RUNS_DIR", "runs/streamlit")),
             gallery_root=Path(env("ADAI_GALLERY_DIR", "docs/examples")),
             backgrounds=env("ADAI_BACKGROUNDS") or None,
             max_queue=int(env("ADAI_MAX_QUEUE", "4")),
             ttl_hours=float(env("ADAI_RUN_TTL_HOURS", "24")),
             show_all_runs=flag("ADAI_SHOW_ALL_RUNS"),
+            models=allowed,
         )
 
     @property
@@ -122,9 +132,10 @@ def _manager() -> JobManager | None:
     if cfg.gallery_only:
         return None
     if cfg.device.type == "cpu":
-        threads = os.environ.get("ADAI_TORCH_THREADS") or _cpu_quota()
-        if threads:
-            torch.set_num_threads(int(threads))
+        # Sticker-sized CPU work runs fastest on few threads: on a 6-core Mac, MobileNet V3
+        # took 0.44 s per step with 2 threads and 1.5 s with the default 6.
+        threads = os.environ.get("ADAI_TORCH_THREADS") or min(2, _cpu_quota() or 2)
+        torch.set_num_threads(int(threads))
     return JobManager(cfg.runs_root, cfg.device, max_queue=cfg.max_queue, make_fn=_make)
 
 
@@ -283,28 +294,31 @@ def page_model() -> None:
     st.write("Each of these models learned to recognize objects from over a million labeled "
              "photos. They were built in different ways and in different years. Bigger isn't "
              "always harder to fool.")
-    if cfg.device.type == "cpu":
-        st.caption("This server has no GPU, so the speed of each model matters. Fast models "
-                   "finish in a few minutes; slow ones can take much longer.")
+    if len(cfg.models) < len(available_models()):
+        names = " and ".join(_model_name(k) for k in cfg.models)
+        st.caption(f"This server has no GPU, so only {names} can make a working sticker here "
+                   "in a few minutes. Your sticker can still be tested on the others. To attack "
+                   "them, run the app on a computer with a GPU.")
     keys = available_models()
     for row in range(0, len(keys), 3):
         for col, key in zip(st.columns(3), keys[row:row + 3], strict=False):
             info = MODEL_INFO[key]
             chosen = st.session_state.model == key
+            usable = key in cfg.models
             with col.container(border=True, height="stretch"):
                 st.markdown(f"#### {info.display_name}")
-                with st.container(horizontal=True, gap="small"):
-                    if info.family == "clip":
-                        st.badge("reads any words", color="violet")
-                    if cfg.device.type == "cpu":
-                        speed = CPU_SPEED.get(key, "medium")
-                        st.badge(f"{speed} without a GPU", color={
-                            "fast": "green", "medium": "gray", "slow": "orange"}[speed])
+                badges = [("reads any words", "violet")] if info.family == "clip" else []
+                if not usable:
+                    badges.append(("needs a GPU", "gray"))
+                if badges:
+                    with st.container(horizontal=True, gap="small"):
+                        for text, color in badges:
+                            st.badge(text, color=color)
                 st.caption(f"{info.year} · {round(info.params_millions)} million parameters")
                 st.write(info.description)
-                st.button("Selected" if chosen else "Choose", key=f"model_{key}",
-                          type="primary" if chosen else "secondary",
-                          icon=":material/check:" if chosen else None,
+                label = "Selected" if chosen else "Choose" if usable else "Needs a GPU"
+                st.button(label, key=f"model_{key}", type="primary" if chosen else "secondary",
+                          icon=":material/check:" if chosen else None, disabled=not usable,
                           on_click=_choose_model, args=(key,), width="stretch")
     _nav_buttons(forward="target", label="Next: pick a target",
                  enabled=st.session_state.model is not None)
@@ -494,6 +508,8 @@ def _start_job() -> None:
     choices = _choices()
     if jobs is None:
         problem = "This site is in gallery mode: making new stickers is turned off."
+    elif choices.model not in cfg.models:
+        problem = f"{_model_name(choices.model)} needs a GPU, and this server doesn't have one."
     elif not ss.ack:
         problem = "Please accept the responsible-use guidance first."
     else:
@@ -597,7 +613,7 @@ def _progress() -> None:
                    if job.status == "queued" else job.message)
         st.markdown(f"**{message}**")
         frac = job.step / job.total_steps if job.total_steps else 0
-        overall = 0.85 if job.status == "evaluating" else frac * 0.85
+        overall = 0.75 + 0.25 * job.eval_progress if job.status == "evaluating" else 0.75 * frac
         st.progress(overall)
         elapsed = time.time() - (job.started or time.time())
         if job.status == "optimizing" and job.step:

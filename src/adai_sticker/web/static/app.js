@@ -337,7 +337,8 @@ async function poll() {
     return;
   }
   const frac = job.total_steps ? job.step / job.total_steps : 0;
-  const overall = job.status === "evaluating" ? 0.85 : job.status === "done" ? 1 : frac * 0.85;
+  const overall = job.status === "evaluating" ? 0.75 + 0.25 * (job.eval_progress ?? 0)
+    : job.status === "done" ? 1 : frac * 0.75;
   $("#progress-fill").style.width = `${Math.round(overall * 100)}%`;
   $("#progress-message").textContent = job.status === "queued"
     ? `Waiting in line (position ${job.queue_position ?? "?"})` : job.message;

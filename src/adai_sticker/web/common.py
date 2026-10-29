@@ -37,9 +37,11 @@ PRESETS = {
     "standard": {"steps": 1000, "eval_images": 300, "grid_images": 100, "label": "Standard (~4 min)"},
 }
 
-# On two shared CPU cores (Streamlit Community Cloud) the GPU presets would take about
-# an hour. The CPU presets train on smaller batches and test on fewer photos, with a
-# coarser rotation x size grid and three to four levels per condition sweep.
+# On two shared CPU cores (Streamlit Community Cloud) the GPU presets would take about an
+# hour. The CPU presets use fewer photos per step, test on fewer photos, and use a coarser
+# rotation x size grid with three or four levels per condition sweep. Calibrated with
+# MobileNet V3 on CPU: 200 steps of 8 photos never got going; 300 steps of 12 reached ~36%
+# on practice photos and was still climbing; 400 of 16 reached ~45%.
 _CPU_EVAL = {
     "batch_size": 24,
     "grid_angles": (-180, -120, -60, 0, 60, 120, 180),
@@ -56,12 +58,13 @@ _CPU_EVAL = {
 }
 CPU_PRESETS = {
     "quick": {
-        "steps": 200, "eval_images": 48, "grid_images": 12, "train_images": 600,
-        "attack": {"batch_size": 8}, "eval": _CPU_EVAL, "label": "Quick (~5 min, no GPU)",
+        "steps": 300, "eval_images": 48, "grid_images": 12, "train_images": 600,
+        "attack": {"batch_size": 12}, "eval": _CPU_EVAL, "label": "Quick",
     },
     "standard": {
-        "steps": 400, "eval_images": 96, "grid_images": 24, "train_images": 1000,
-        "attack": {"batch_size": 12}, "eval": _CPU_EVAL, "label": "Thorough (~12 min, no GPU)",
+        "steps": 500, "eval_images": 96, "grid_images": 24, "train_images": 1000,
+        "attack": {"batch_size": 16}, "eval": _CPU_EVAL,
+        "label": "Thorough (about twice as long, stronger)",
     },
 }
 

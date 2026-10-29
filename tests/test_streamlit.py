@@ -40,6 +40,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("ADAI_GALLERY_DIR", str(gallery))
     monkeypatch.delenv("ADAI_GALLERY_ONLY", raising=False)
     monkeypatch.delenv("ADAI_SHOW_ALL_RUNS", raising=False)
+    monkeypatch.delenv("ADAI_MODELS", raising=False)
     monkeypatch.setattr(pipeline, "load_model", lambda key, device=None: TinyClassifier(key).eval())
     monkeypatch.setattr(common, "CPU_PRESETS", TINY_PRESETS)
     streamlit_ui._manager.clear()
@@ -99,7 +100,7 @@ def test_free_text_only_for_clip(env):
 
 def test_make_sticker_end_to_end(env):
     target = {"allowed": True, "label": "toaster", "free_text": False}
-    at = _app(ack=True, model="resnet50", target=target, test_others=False,
+    at = _app(ack=True, model="mobilenet_v3_large", target=target, test_others=False,
               _goto=("make", {}))
     _button(at, "Make my sticker").click().run()
     assert not at.exception and at.session_state["job_id"]
@@ -112,8 +113,22 @@ def test_make_sticker_end_to_end(env):
     run_dir = Path(at.session_state["run_dir"])
     assert (run_dir / "report.json").exists() and (run_dir / "print_sheet.pdf").exists()
     assert run_dir.name in at.session_state["my_runs"]
-    assert "sticker vs. ResNet-50" in _text(at)
+    assert "sticker vs. MobileNet V3" in _text(at)
     assert {d.label for d in at.get("download_button")} >= {"Print sheet (PDF)", "Full report"}
+
+
+def test_cpu_server_offers_only_mobilenet(env, monkeypatch):
+    at = _app(ack=True, _goto=("model", {}))
+    disabled = {b.key for b in at.button if b.key and b.key.startswith("model_") and b.disabled}
+    assert disabled == {"model_resnet50", "model_efficientnet_b0", "model_convnext_tiny",
+                        "model_vit_b_16", "model_clip-vit-b-32"}
+    target = {"allowed": True, "label": "toaster", "free_text": False}
+    at = _app(ack=True, model="resnet50", target=target, _goto=("make", {}))
+    _button(at, "Make my sticker").click().run()
+    assert "needs a GPU" in at.error[0].value and at.session_state["job_id"] is None
+    monkeypatch.setenv("ADAI_MODELS", "all")
+    at = _app(ack=True, _goto=("model", {}))
+    assert not any(b.disabled for b in at.button if b.key and b.key.startswith("model_"))
 
 
 def test_results_link_opens_a_finished_run(env):
