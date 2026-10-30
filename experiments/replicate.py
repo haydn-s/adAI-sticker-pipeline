@@ -45,13 +45,15 @@ ENSEMBLE = "resnet50+efficientnet_b0+convnext_tiny"
 TRANSFER_ARGS = ["--sources", "resnet50", "convnext_tiny", ENSEMBLE]
 EXPERIMENTS = {"stealth": (stealth_tradeoff, STEALTH_ARGS), "transfer": (transfer_matrix, TRANSFER_ARGS)}
 HELD_OUT = ["mobilenet_v3_large", "vit_b_16", "clip-vit-b-32"]  # seen by none of the transfer sources
+STALL_PROB = 0.01  # a run whose training target probability never beats this stalled
 
 STEALTH_CELL = ["name", "mode", "setting"]
 STEALTH_METRICS = ["success_rate", "top5_rate", "disruption_rate", "ssim", "changed_fraction",
-                   "cover_only_success", "cover_only_disruption", "noise_success", "noise_disruption"]
+                   "cover_only_success", "cover_only_disruption", "noise_success", "noise_disruption",
+                   "train_peak_target_prob"]
 TRANSFER_CELL = ["source", "eval_model", "seen"]
 TRANSFER_METRICS = ["success_rate", "disruption_rate", "clean_success", "noise_success",
-                    "noise_disruption"]
+                    "noise_disruption", "train_peak_target_prob"]
 
 
 def run_experiments(args: argparse.Namespace) -> None:
@@ -209,6 +211,10 @@ def report_stealth(rows: list[dict], targets: list[str], out: Path) -> None:
         print(_diff(f"{name}: correct label lost − cover photo alone",
                     paired(rows, {"name": name}, {"name": name}, "disruption_rate",
                            "cover_only_disruption")))
+    stalled = [f"{r['target']}/seed{r['seed']}/{r['name']} (peak {_num(r['train_peak_target_prob']):.1%})"
+               for r in rows if _num(r.get("train_peak_target_prob")) < STALL_PROB]
+    print(f"  stalled (training target probability never above {STALL_PROB:.0%}): "
+          + (", ".join(stalled) or "none"))
 
 
 def plot_stealth(summary: list[dict], targets: list[str], path: Path) -> None:
@@ -298,6 +304,13 @@ def report_transfer(rows: list[dict], targets: list[str], out: Path) -> None:
     print("  sticker disruption (mean) per source: " + "; ".join(
         f"{_source_name(s, True)}: " + ", ".join(
             f"{m} {get[('all', s, m)]['disruption_rate_mean']:.0%}" for m in models) for s in sources))
+
+    for s in sources:
+        own = min((r for r in rows if r["source"] == s and r["seen"] == "True"),
+                  key=lambda r: _num(r["success_rate"]))
+        print(f"  weakest {_source_name(s, True)} run on a model it saw: {own['target']}/seed{own['seed']} "
+              f"{own['eval_model']} {_num(own['success_rate']):.0%} (training peak target probability "
+              f"{_num(own.get('train_peak_target_prob')):.0%})")
 
     print("\nTransfer, paired per run:")
     held = {"eval_model": "held-out mean"}

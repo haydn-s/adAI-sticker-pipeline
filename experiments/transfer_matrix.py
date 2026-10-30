@@ -57,6 +57,7 @@ def run(args: argparse.Namespace) -> None:
             print(f"\n=== source: {source} ===", flush=True)
             summary = make_sticker(request, run_dir, say=lambda m: print("  " + m, flush=True))
         matrix[source] = {k: v["headline"]["success_rate"] for k, v in summary["evaluation"].items()}
+        history = json.loads((run_dir / "history.json").read_text())
         for key, ev in summary["evaluation"].items():
             noise = ev["controls"]["random-noise sticker"]
             rows.append({"source": source, "eval_model": key, "seen": key in models,
@@ -64,7 +65,8 @@ def run(args: argparse.Namespace) -> None:
                          "disruption_rate": ev["headline"]["disruption_rate"],
                          "clean_success": ev["controls"]["no sticker"]["success_rate"],
                          "noise_success": noise["success_rate"],
-                         "noise_disruption": noise["disruption_rate"]})
+                         "noise_disruption": noise["disruption_rate"],
+                         "train_peak_target_prob": max(h["target_prob"] for h in history)})
 
     with (out / "results.csv").open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))

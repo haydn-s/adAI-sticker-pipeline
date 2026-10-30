@@ -75,6 +75,7 @@ def run(args: argparse.Namespace) -> list[dict]:
         head = summary["evaluation"][args.model]["headline"]
         controls = summary["evaluation"][args.model]["controls"]
         stats = summary["stealth"]
+        history = json.loads((out / name / "history.json").read_text())
         rows.append({
             "name": name,
             "mode": mode if mode != "region" else f"region-{region}",
@@ -89,6 +90,8 @@ def run(args: argparse.Namespace) -> list[dict]:
             "cover_only_disruption": controls.get("cover photo only", {}).get("disruption_rate", ""),
             "noise_success": controls["random-noise sticker"]["success_rate"],
             "noise_disruption": controls["random-noise sticker"]["disruption_rate"],
+            # Near zero means the optimization stalled rather than found a weak sticker.
+            "train_peak_target_prob": max(h["target_prob"] for h in history),
         })
         print(f"  success {head['success_rate']:.0%}  ssim {stats.get('ssim', float('nan')):.3f}")
 
