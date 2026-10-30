@@ -49,8 +49,8 @@ Reproduce with `uv run adai-sticker make --target toaster --transfer` (fixed see
 numbers may vary slightly across hardware).
 
 **Experiments.** Stealth vs. strength (can a sticker look like a normal photo and
-still work?) and transfer and ensemble studies are written up in
-[docs/RESULTS.md](docs/RESULTS.md).
+still work?) and transfer and ensemble studies, each repeated over 3 targets × 3 seeds,
+are written up in [docs/RESULTS.md](docs/RESULTS.md).
 
 
 ## How it works
