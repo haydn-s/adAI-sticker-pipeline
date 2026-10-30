@@ -8,7 +8,7 @@ Each one writes a folder under `runs/` containing one sub-run per configuration
 |---|---|---|
 | `stealth_tradeoff.py` | How much success does a sticker give up as it looks more like a normal photo (region amount, blend ε)? | ~2 min per setting |
 | `transfer_matrix.py` | Do stickers fool models they never saw, and do ensembles help? | ~3–6 min per source on an M-series GPU |
-| `replicate.py` | Do those answers hold across targets and seeds? Runs both scripts for 3 targets × 3 seeds on a subset of settings, then pools them (mean, min–max, paired per-run comparisons) | ~4–5 h in total; `--summarize-only` needs no GPU |
+| `replicate.py` | Do those answers hold across targets and seeds? Runs both scripts for 3 targets × 3 seeds on a subset of settings, then pools them (mean, min–max, paired per-run comparisons) | ~3.5 h in total; `--summarize-only` needs no GPU |
 
 ```bash
 uv run python experiments/stealth_tradeoff.py --target toaster
