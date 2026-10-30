@@ -375,6 +375,7 @@ def evaluate_defenses(
         if isinstance(defended, SaliencyMaskDefense):
             calib = _center_batch(train, request.eval.scene_size, device)
             result["saliency_threshold"] = defended.calibrate(calib)
+            result["saliency_area"] = defended.area
         row = assess(defended, sticker)
         rows.append(row)
         say(f"{defended.label}: success {row['success_rate']:.0%}, clean accuracy {row['clean_accuracy']:.0%}")
@@ -535,12 +536,15 @@ def _saliency_section(result: dict) -> list[str]:
     undefended = rows[0]
     best = max(adaptive, key=lambda r: r["success_rate"])
     cost = undefended["clean_accuracy"] - original["clean_accuracy"]
+    settings = result.get("saliency_attack_settings", {})
+    tuned = (f" (attention weight {settings['attention_weight']:g}, sigmoid temperature "
+             f"{settings['soft_tau']:g})" if settings else "")
     lines = [
         "## Adaptive attacks on the saliency detector",
         "",
         f"Each attacker starts from the original sticker and re-optimizes it for "
         f"{result['adaptive_steps']} steps on training photos, knowing the detector and its "
-        "threshold:",
+        f"threshold{tuned}:",
         "",
         "- **BPDA (straight-through mask)**: optimize the *defended* prediction. The forward "
         "pass is the real detector; the backward pass swaps its two hard thresholds for "
@@ -563,14 +567,20 @@ def _saliency_section(result: dict) -> list[str]:
                      f"{_pct(r.get('success_without_defense'))} |")
     lines += [
         "",
-        f"The detector costs {cost * 100:.0f} points of clean accuracy "
-        f"({undefended['clean_accuracy']:.0%} → {original['clean_accuracy']:.0%}) whichever "
+        f"The detector costs {cost * 100:.1f} points of clean accuracy "
+        f"({undefended['clean_accuracy']:.1%} → {original['clean_accuracy']:.1%}) whichever "
         f"sticker it faces. Against the original sticker it holds success to "
-        f"{original['success_rate']:.0%}; the strongest adaptive attack here "
-        f"({best['attack']}) reaches {best['success_rate']:.0%} "
-        f"(undefended: {undefended['success_rate']:.0%}).",
-        "",
+        f"{original['success_rate']:.0%} (undefended: {undefended['success_rate']:.0%}). "
+        f"The strongest adaptive attack here ({best['attack']}) reaches "
+        f"{best['success_rate']:.0%}, and the detector flags {_pct(best.get('flagged_on_sticker'))} "
+        f"of its photos (clean photos: {_pct(best.get('flagged_on_clean'))}).",
     ]
+    if best.get("success_without_defense", 1.0) < undefended["success_rate"] - 0.1:
+        lines.append(
+            f"Evading the detector cost the sticker strength: without the detector it now "
+            f"succeeds {best['success_without_defense']:.0%} of the time, down from "
+            f"{undefended['success_rate']:.0%}.")
+    lines.append("")
     return lines
 
 
@@ -595,9 +605,10 @@ def _size_section(result: dict) -> list[str]:
                      f"{r['success_with_defense']:.0%} | {_pct(r.get('flagged'))} |")
     lines += [
         "",
-        "The detector grays out the top 12% of Grad-CAM pixels plus a margin, which is more "
-        "than a small sticker covers. A sticker big enough to spread the model's attention "
-        "over a larger area no longer looks *concentrated*, so the detector stops firing.",
+        f"The detector grays out the top {_pct(result.get('saliency_area', 0.12))} of Grad-CAM "
+        "pixels plus a margin, which is more than a small sticker covers. A sticker big enough "
+        "to spread the model's attention over a larger area no longer looks *concentrated*, so "
+        "the detector stops firing.",
         "",
     ]
     return lines
