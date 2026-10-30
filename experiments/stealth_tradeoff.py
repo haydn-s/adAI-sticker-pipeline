@@ -6,7 +6,8 @@ Builds one cover-photo sticker per stealth setting:
 * blend mode  — per-pixel budget epsilon in 1/255 units (``--epsilons``)
 
 plus a fully adversarial reference sticker, and evaluates each on held-out photos.
-Writes ``results.csv``, ``results.json`` and ``fig_tradeoff.png`` to ``--out``.
+Writes ``results.csv``, ``results.json`` and ``fig_tradeoff.png`` to ``--out``, and
+reuses stickers already finished there (``--fresh`` to redo).
 
     uv run python experiments/stealth_tradeoff.py --target toaster --cover dog.jpg
 """
@@ -64,9 +65,15 @@ def run(args: argparse.Namespace) -> list[dict]:
             attack=AttackConfig(steps=args.steps, seed=args.seed),
             eval=EvalSettings(n_images=args.eval_images), full_battery=False,
         )
-        print(f"\n=== {name} ===", flush=True)
-        summary = make_sticker(request, out / name, say=lambda m: print("  " + m, flush=True))
+        saved = out / name / "report.json"
+        if saved.exists() and not args.fresh:  # finished in an earlier, interrupted run
+            print(f"\n=== {name} (reusing {saved}) ===", flush=True)
+            summary = json.loads(saved.read_text())
+        else:
+            print(f"\n=== {name} ===", flush=True)
+            summary = make_sticker(request, out / name, say=lambda m: print("  " + m, flush=True))
         head = summary["evaluation"][args.model]["headline"]
+        controls = summary["evaluation"][args.model]["controls"]
         stats = summary["stealth"]
         rows.append({
             "name": name,
@@ -78,8 +85,10 @@ def run(args: argparse.Namespace) -> list[dict]:
             "changed_fraction": stats.get("changed_fraction", 1.0),
             "mean_abs_change": stats.get("mean_abs_change", ""),
             "ssim": stats.get("ssim", ""),
-            "cover_only_success": summary["evaluation"][args.model]["controls"]
-            .get("cover photo only", {}).get("success_rate", ""),
+            "cover_only_success": controls.get("cover photo only", {}).get("success_rate", ""),
+            "cover_only_disruption": controls.get("cover photo only", {}).get("disruption_rate", ""),
+            "noise_success": controls["random-noise sticker"]["success_rate"],
+            "noise_disruption": controls["random-noise sticker"]["disruption_rate"],
         })
         print(f"  success {head['success_rate']:.0%}  ssim {stats.get('ssim', float('nan')):.3f}")
 
@@ -127,7 +136,7 @@ def plot(rows: list[dict], path: Path, args: argparse.Namespace) -> None:
     plt.close(fig)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--target", default="toaster")
     p.add_argument("--model", default="resnet50")
@@ -141,7 +150,13 @@ def main() -> None:
     p.add_argument("--eval-images", type=int, default=300)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", default="runs/exp-stealth")
-    run(p.parse_args())
+    p.add_argument("--fresh", action="store_true",
+                   help="remake every sticker instead of reusing finished ones in --out")
+    return p
+
+
+def main() -> None:
+    run(build_parser().parse_args())
 
 
 if __name__ == "__main__":

@@ -58,9 +58,13 @@ def run(args: argparse.Namespace) -> None:
             summary = make_sticker(request, run_dir, say=lambda m: print("  " + m, flush=True))
         matrix[source] = {k: v["headline"]["success_rate"] for k, v in summary["evaluation"].items()}
         for key, ev in summary["evaluation"].items():
+            noise = ev["controls"]["random-noise sticker"]
             rows.append({"source": source, "eval_model": key, "seen": key in models,
                          "success_rate": ev["headline"]["success_rate"],
-                         "disruption_rate": ev["headline"]["disruption_rate"]})
+                         "disruption_rate": ev["headline"]["disruption_rate"],
+                         "clean_success": ev["controls"]["no sticker"]["success_rate"],
+                         "noise_success": noise["success_rate"],
+                         "noise_disruption": noise["disruption_rate"]})
 
     with (out / "results.csv").open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
@@ -100,7 +104,7 @@ def plot(matrix: dict[str, dict[str, float]], eval_models: list[str], path: Path
     plt.close(fig)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--target", default="toaster")
     p.add_argument("--sources", nargs="+", default=DEFAULT_SOURCES,
@@ -113,7 +117,11 @@ def main() -> None:
     p.add_argument("--out", default="runs/exp-transfer")
     p.add_argument("--fresh", action="store_true",
                    help="remake every sticker instead of reusing finished ones in --out")
-    run(p.parse_args())
+    return p
+
+
+def main() -> None:
+    run(build_parser().parse_args())
 
 
 if __name__ == "__main__":
