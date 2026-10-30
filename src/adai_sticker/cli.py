@@ -11,6 +11,7 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
+from .defense import SALIENCY_ATTACKS
 from .labels import (
     BLOCK_RATIONALE,
     BLOCKED_IMAGENET,
@@ -143,7 +144,8 @@ def cmd_defend(args: argparse.Namespace) -> int:
 
     try:
         evaluate_defenses(args.run_dir, args.defense, adaptive_steps=args.adaptive_steps,
-                          device=args.device)
+                          saliency_attacks=args.adaptive_attack, attention_weight=args.attention_weight,
+                          soft_tau=args.soft_tau, device=args.device)
     except ValueError as err:
         print(f"Error: {err}", file=sys.stderr)
         return 2
@@ -266,7 +268,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--defense", action="append",
                    help="blur[:sigma], jpeg[:quality], saliency[:area]; repeat (default: all three)")
     s.add_argument("--adaptive-steps", type=int, default=300,
-                   help="re-optimize the sticker against the blur defense (0 to skip)")
+                   help="steps for each adaptive attacker that re-optimizes the sticker against "
+                        "a defense (0 to skip)")
+    s.add_argument("--adaptive-attack", action="append", choices=list(SALIENCY_ATTACKS),
+                   help="adaptive attack on the saliency defense: bpda (optimize through a "
+                        "straight-through mask), attention (push Grad-CAM attention off the "
+                        "sticker), combined; repeat (default: all three)")
+    s.add_argument("--attention-weight", type=float, default=2.0,
+                   help="weight of the attention-evasion loss (attention and combined attacks)")
+    s.add_argument("--soft-tau", type=float, default=0.05,
+                   help="sigmoid temperature of the straight-through mask (bpda and combined attacks)")
     s.add_argument("--device")
     s.set_defaults(func=cmd_defend)
 

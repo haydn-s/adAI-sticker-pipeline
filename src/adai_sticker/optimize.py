@@ -74,11 +74,14 @@ def optimize_sticker(
     config: AttackConfig | None = None,
     on_step: Callable[[StepInfo], None] | None = None,
     log_every: int = 25,
+    extra_loss: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None = None,
 ) -> AttackResult:
     """Optimize ``sticker`` so ``models`` see ``target`` in simulated photos.
 
     With several models the loss is averaged over the ensemble, which tends to
     produce stickers that transfer better to models never seen in training.
+    ``extra_loss(scenes, scene_alpha)`` adds a term to the objective, e.g. one that
+    steers the model's explanation (see :mod:`adai_sticker.defense`).
     """
     cfg = config or AttackConfig()
     device = next(models[0].parameters()).device
@@ -104,7 +107,7 @@ def optimize_sticker(
         placement = sample_placement(cfg.batch_size, cfg.eot, gen)
         photometric = sample_photometric(cfg.batch_size, cfg.eot, gen)
         rgb, alpha = sticker()
-        scenes, _ = render_scenes(bg, rgb, alpha, placement, photometric, cfg.eot.gamut)
+        scenes, scene_alpha = render_scenes(bg, rgb, alpha, placement, photometric, cfg.eot.gamut)
 
         attack = torch.zeros((), device=device)
         probs = torch.zeros(cfg.batch_size, device=device)
@@ -123,6 +126,8 @@ def optimize_sticker(
         loss = attack + cfg.tv_weight * tv
         if use_nps:
             loss = loss + cfg.nps_weight * non_printability(rgb, printable, alpha * sticker.region)
+        if extra_loss is not None:
+            loss = loss + extra_loss(scenes, scene_alpha)
         if sticker.uses_palette:
             pull = cfg.palette_pull * min(1.0, step / max(1, hard_step))
             loss = loss + pull * sticker.palette_distance()
