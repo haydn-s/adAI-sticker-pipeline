@@ -272,7 +272,10 @@ def attack_saliency(
                                  "combined": [defense.base, through]}[kind]
     extra = None
     if kind in ("attention", "combined"):
-        extra = attention_penalty(defense.base, defense.class_index(target), attention_weight)
+        # optimize_sticker averages the label losses over its models; dividing the weight the
+        # same way keeps the label-vs-attention balance of ``combined`` equal to ``attention``.
+        extra = attention_penalty(defense.base, defense.class_index(target),
+                                  attention_weight / len(models))
     return optimize_sticker(sticker, models, target, backgrounds, config, extra_loss=extra, **kwargs)
 
 
