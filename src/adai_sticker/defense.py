@@ -47,6 +47,7 @@ from .sticker import Sticker
 from .transforms import gaussian_blur
 
 DEFENSES = ("blur", "jpeg", "saliency")
+SIZE_SWEEP = (0.25, 0.35, 0.45, 0.55, 0.65)  # sticker width / photo width
 SALIENCY_ATTACKS = {
     "bpda": "BPDA (straight-through mask)",
     "attention": "attention-evasion loss",
@@ -371,6 +372,11 @@ def evaluate_defenses(
         row = assess(defended, sticker)
         rows.append(row)
         say(f"{defended.label}: success {row['success_rate']:.0%}, clean accuracy {row['clean_accuracy']:.0%}")
+        if isinstance(defended, SaliencyMaskDefense):
+            result["saliency_by_size"] = _by_size(evaluator, base, defended, sticker, photometric)
+            result["trained_scale"] = list(request.attack.eot.scale)
+            say("  by sticker width: " + ", ".join(
+                f"{r['scale']:.0%} → {r['success_with_defense']:.0%}" for r in result["saliency_by_size"]))
         if adaptive_steps <= 0:
             continue
 
@@ -402,6 +408,25 @@ def evaluate_defenses(
                 sticker_area=area)
     (run_dir / "defense.md").write_text(defense_markdown(result))
     return result
+
+
+def _by_size(evaluator, base: VictimModel, defense: SaliencyMaskDefense, sticker: Sticker,
+             photometric) -> list[dict]:
+    """Success with and without the detector at fixed sticker widths (random rotation and position)."""
+    rgb, alpha = sticker.render()
+    n = evaluator.settings.grid_images
+    out = []
+    for scale in SIZE_SWEEP:
+        placement = evaluator._fixed_placement(scale)
+        defended = evaluator.measure(defense, rgb, alpha, placement, photometric, n_images=n)
+        out.append({
+            "scale": scale,
+            "success_without_defense": evaluator.measure(base, rgb, alpha, placement, photometric,
+                                                         n_images=n).success_rate,
+            "success_with_defense": defended.success_rate,
+            "flagged": defended.flagged_rate,
+        })
+    return out
 
 
 def _center_batch(bgs, size: int, device) -> torch.Tensor:
@@ -491,6 +516,7 @@ def defense_markdown(result: dict) -> str:
         "",
     ]
     lines += _saliency_section(result)
+    lines += _size_section(result)
     return "\n".join(lines)
 
 
@@ -536,6 +562,35 @@ def _saliency_section(result: dict) -> list[str]:
         f"{original['success_rate']:.0%}; the strongest adaptive attack here "
         f"({best['attack']}) reaches {best['success_rate']:.0%} "
         f"(undefended: {undefended['success_rate']:.0%}).",
+        "",
+    ]
+    return lines
+
+
+def _size_section(result: dict) -> list[str]:
+    sizes = result.get("saliency_by_size")
+    if not sizes:
+        return []
+    lo, hi = result.get("trained_scale", (None, None))
+    trained = (f" The sticker was optimized and tested at widths of {lo:.0%}–{hi:.0%}."
+               if lo is not None else "")
+    lines = [
+        "## Does sticker size matter to the saliency detector?",
+        "",
+        "The original sticker at fixed widths (share of the photo's width), with random "
+        f"rotation and position.{trained}",
+        "",
+        "| Sticker width | Success without detector | Success with detector | Flagged |",
+        "|---|---|---|---|",
+    ]
+    for r in sizes:
+        lines.append(f"| {r['scale']:.0%} | {r['success_without_defense']:.0%} | "
+                     f"{r['success_with_defense']:.0%} | {_pct(r.get('flagged'))} |")
+    lines += [
+        "",
+        "The detector grays out the top 12% of Grad-CAM pixels plus a margin, which is more "
+        "than a small sticker covers. A sticker big enough to spread the model's attention "
+        "over a larger area no longer looks *concentrated*, so the detector stops firing.",
         "",
     ]
     return lines

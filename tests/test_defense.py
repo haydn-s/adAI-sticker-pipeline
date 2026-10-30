@@ -155,6 +155,8 @@ def test_defend_cli_reports_adaptive_attacks(tmp_path, monkeypatch):
         if row["attacker"] == "adaptive attacker":
             assert 0 <= row["success_without_defense"] <= 1
     assert 0 < result["sticker_area"] < 1 and result["saliency_threshold"] > 0
+    assert [r["scale"] for r in result["saliency_by_size"]] == [0.25, 0.35, 0.45, 0.55, 0.65]
     md = (run / "defense.md").read_text()
     assert "## Adaptive attacks on the saliency detector" in md
+    assert "## Does sticker size matter to the saliency detector?" in md
     assert (run / "fig_defense.png").exists()
