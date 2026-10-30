@@ -253,7 +253,7 @@ def attack_saliency(
     backgrounds: BackgroundSet,
     config: AttackConfig,
     kind: str = "bpda",
-    attention_weight: float = 2.0,
+    attention_weight: float = 30.0,
     tau: float = 0.05,
     **kwargs,
 ) -> AttackResult:
@@ -289,7 +289,7 @@ def evaluate_defenses(
     specs: list[str] | None = None,
     adaptive_steps: int = 0,
     saliency_attacks: list[str] | None = None,
-    attention_weight: float = 2.0,
+    attention_weight: float = 30.0,
     soft_tau: float = 0.05,
     device: torch.device | str | None = None,
     say=print,

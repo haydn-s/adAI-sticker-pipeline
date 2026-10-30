@@ -274,7 +274,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="adaptive attack on the saliency defense: bpda (optimize through a "
                         "straight-through mask), attention (push Grad-CAM attention off the "
                         "sticker), combined; repeat (default: all three)")
-    s.add_argument("--attention-weight", type=float, default=2.0,
+    s.add_argument("--attention-weight", type=float, default=30.0,
                    help="weight of the attention-evasion loss (attention and combined attacks)")
     s.add_argument("--soft-tau", type=float, default=0.05,
                    help="sigmoid temperature of the straight-through mask (bpda and combined attacks)")
