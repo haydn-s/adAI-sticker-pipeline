@@ -180,7 +180,8 @@ def report_stealth(rows: list[dict], targets: list[str], out: Path) -> None:
     summary = summarize(rows, STEALTH_CELL, STEALTH_METRICS, targets)
     write_csv(rows, out / "runs.csv")
     write_csv(summary, out / "summary.csv")
-    plot_stealth(summary, targets, out / "fig_tradeoff.png")
+    stalled = [r for r in rows if _num(r.get("train_peak_target_prob")) < STALL_PROB]
+    plot_stealth(summary, targets, out / "fig_tradeoff.png", stalled)
 
     pooled = [r for r in summary if r["target"] == "all"]
     get = {(r["target"], r["name"]): r for r in summary}
@@ -211,14 +212,16 @@ def report_stealth(rows: list[dict], targets: list[str], out: Path) -> None:
         print(_diff(f"{name}: correct label lost − cover photo alone",
                     paired(rows, {"name": name}, {"name": name}, "disruption_rate",
                            "cover_only_disruption")))
-    stalled = [f"{r['target']}/seed{r['seed']}/{r['name']} (peak {_num(r['train_peak_target_prob']):.1%})"
-               for r in rows if _num(r.get("train_peak_target_prob")) < STALL_PROB]
-    print(f"  stalled (training target probability never above {STALL_PROB:.0%}): "
-          + (", ".join(stalled) or "none"))
+    print(f"  stalled (training target probability never above {STALL_PROB:.0%}): " + (", ".join(
+        f"{r['target']}/seed{r['seed']}/{r['name']} (peak {_num(r['train_peak_target_prob']):.1%})"
+        for r in stalled) or "none"))
 
 
-def plot_stealth(summary: list[dict], targets: list[str], path: Path) -> None:
+def plot_stealth(summary: list[dict], targets: list[str], path: Path, stalled: list[dict]) -> None:
     rpt._style()
+    n_stalled = defaultdict(int)
+    for r in stalled:
+        n_stalled[(r["target"], r["name"])] += 1
     fig, axes = plt.subplots(1, len(targets), figsize=(rpt.FIG_WIDTH, 3.6), dpi=150, sharey=True,
                              squeeze=False)
     series = [("region-stripes", "Stripes (share of sticker)"), ("blend", "Blend (ε, /255)")]
@@ -243,9 +246,12 @@ def plot_stealth(summary: list[dict], targets: list[str], path: Path) -> None:
                         mec=rpt.SURFACE, mew=1.5, elinewidth=1, capsize=2, label=label)
             for r in pts:
                 v = float(r["setting"])
-                ax.annotate(f"{v:.0%}" if mode != "blend" else f"{v:g}",
+                k = n_stalled[(target, r["name"])]
+                ax.annotate((f"{v:.0%}" if mode != "blend" else f"{v:g}")
+                            + (f" ({k}/{r['n']} stalled)" if k else ""),
                             (r["ssim_mean"], r["success_rate_mean"]), textcoords="offset points",
-                            xytext=(5, 4), fontsize=7.5, color=rpt.TEXT_2)
+                            xytext=(-5, 5) if k else (5, 4), ha="right" if k else "left",
+                            fontsize=7.5, color=rpt.TEXT_2)
         ax.set_title(f'"{target}"', loc="left", fontsize=10)
         ax.set_xlabel("Similarity to the photo (SSIM)")
         ax.set_xlim(0.1, 0.85)
