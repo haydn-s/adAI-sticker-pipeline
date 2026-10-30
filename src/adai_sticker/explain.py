@@ -60,6 +60,42 @@ def gradcam(model: VictimModel, images: torch.Tensor,
     return _normalize(cam.detach()), "Grad-CAM"
 
 
+def differentiable_gradcam(model: VictimModel, images: torch.Tensor,
+                           class_idx: int | torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+    """Grad-CAM that keeps its graph, so an attacker can optimize against the explanation.
+
+    Returns (heatmaps (B, H, W) in [0, 1], logits). ``class_idx=None`` explains each
+    image's top-1 class, as the saliency defense does. The channel weights are held
+    constant and the gradient flows through the activations. For ResNets, whose last
+    block feeds global pooling and one linear layer, the weights don't depend on the
+    input anyway, so the heatmap's gradient is exact.
+    """
+    if model.gradcam_layer is None:
+        raise ValueError(f"{model.key} has no convolutional layer for Grad-CAM; attacking "
+                         "the explanation is only supported for CNNs.")
+    store: dict[str, torch.Tensor] = {}
+
+    def hook(_module, _inp, out):
+        store["act"] = out
+
+    if not images.requires_grad:
+        images = images.detach().requires_grad_(True)
+    handle = model.gradcam_layer.register_forward_hook(hook)
+    try:
+        with torch.enable_grad():
+            logits = model(images)
+            if class_idx is None:
+                class_idx = logits.detach().argmax(-1)
+            (grad,) = torch.autograd.grad(_class_scores(logits, class_idx).sum(), store["act"],
+                                          retain_graph=True)
+            weights = grad.mean(dim=(2, 3), keepdim=True)
+            cam = F.relu((weights * store["act"]).sum(1, keepdim=True))
+            cam = F.interpolate(cam, size=images.shape[-2:], mode="bilinear", align_corners=False)[:, 0]
+            return _normalize(cam), logits
+    finally:
+        handle.remove()
+
+
 def input_saliency(model: VictimModel, images: torch.Tensor, class_idx: int | torch.Tensor,
                    samples: int = 8, noise: float = 0.05) -> torch.Tensor:
     """SmoothGrad: average |d score / d pixel| over noisy copies, then blur."""
@@ -94,9 +130,15 @@ class AttentionShare:
         return {**asdict(self), "ratio": self.ratio}
 
 
-def attention_share(cams: torch.Tensor, scene_alpha: torch.Tensor, method: str) -> AttentionShare:
+def share_on_sticker(cams: torch.Tensor, scene_alpha: torch.Tensor) -> torch.Tensor:
+    """Per-image fraction of explanation mass on the sticker, shape (B,). Differentiable."""
     a = scene_alpha[:, 0] if scene_alpha.dim() == 4 else scene_alpha
     mass = cams.flatten(1).sum(1).clamp_min(1e-8)
-    on = (cams * a).flatten(1).sum(1) / mass
+    return (cams * a).flatten(1).sum(1) / mass
+
+
+def attention_share(cams: torch.Tensor, scene_alpha: torch.Tensor, method: str) -> AttentionShare:
+    a = scene_alpha[:, 0] if scene_alpha.dim() == 4 else scene_alpha
+    on = share_on_sticker(cams, a)
     area = a.flatten(1).mean(1)
     return AttentionShare(float(on.mean()), float(area.mean()), method)

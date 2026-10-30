@@ -10,28 +10,34 @@
       "attacker": "original sticker",
       "clean_accuracy": 0.8628158569335938,
       "success_rate": 0.6666666666666666,
-      "disruption_rate": 0.6108786610878661
+      "disruption_rate": 0.6108786610878661,
+      "attention_on_sticker": 0.6044034361839294
     },
     {
       "defense": "blur \u03c3=1.5",
       "attacker": "original sticker",
       "clean_accuracy": 0.8122743964195251,
       "success_rate": 0.4166666666666667,
-      "disruption_rate": 0.4088888888888889
+      "disruption_rate": 0.4088888888888889,
+      "attention_on_sticker": 0.6044034361839294
     },
     {
       "defense": "blur \u03c3=1.5",
       "attacker": "adaptive attacker",
       "clean_accuracy": 0.8122743964195251,
-      "success_rate": 0.71,
-      "disruption_rate": 0.6533333333333333
+      "success_rate": 0.74,
+      "disruption_rate": 0.68,
+      "attention_on_sticker": 0.5879902243614197,
+      "attack": "re-optimized through blur",
+      "success_without_defense": 0.28
     },
     {
       "defense": "JPEG q=50",
       "attacker": "original sticker",
       "clean_accuracy": 0.8194946050643921,
       "success_rate": 0.41333333333333333,
-      "disruption_rate": 0.3876651982378855
+      "disruption_rate": 0.3876651982378855,
+      "attention_on_sticker": 0.6044034361839294
     },
     {
       "defense": "saliency mask",
@@ -39,9 +45,90 @@
       "clean_accuracy": 0.8158844709396362,
       "success_rate": 0.04,
       "disruption_rate": 0.17256637168141592,
+      "attention_on_sticker": 0.6044034361839294,
       "flagged_on_sticker": 0.6933333333333334,
+      "flagged_on_clean": 0.12333333333333334
+    },
+    {
+      "defense": "saliency mask",
+      "attacker": "adaptive attacker",
+      "clean_accuracy": 0.8158844709396362,
+      "success_rate": 0.06666666666666667,
+      "disruption_rate": 0.17256637168141592,
+      "attention_on_sticker": 0.6121969223022461,
+      "attack": "BPDA (straight-through mask)",
+      "success_without_defense": 0.6233333333333333,
+      "flagged_on_sticker": 0.6533333333333333,
+      "flagged_on_clean": 0.12333333333333334
+    },
+    {
+      "defense": "saliency mask",
+      "attacker": "adaptive attacker",
+      "clean_accuracy": 0.8158844709396362,
+      "success_rate": 0.18666666666666668,
+      "disruption_rate": 0.252212389380531,
+      "attention_on_sticker": 0.3543508052825928,
+      "attack": "attention-evasion loss",
+      "success_without_defense": 0.25,
+      "flagged_on_sticker": 0.17333333333333334,
+      "flagged_on_clean": 0.12333333333333334
+    },
+    {
+      "defense": "saliency mask",
+      "attacker": "adaptive attacker",
+      "clean_accuracy": 0.8158844709396362,
+      "success_rate": 0.2,
+      "disruption_rate": 0.2831858407079646,
+      "attention_on_sticker": 0.44880834221839905,
+      "attack": "BPDA + attention loss",
+      "success_without_defense": 0.5233333333333333,
+      "flagged_on_sticker": 0.38333333333333336,
       "flagged_on_clean": 0.12333333333333334
     }
   ],
-  "adaptive_steps": 300
+  "adaptive_steps": 1000,
+  "sticker_area": 0.09240379184484482,
+  "attention_method": "Grad-CAM",
+  "saliency_attack_settings": {
+    "attention_weight": 30.0,
+    "soft_tau": 0.05
+  },
+  "saliency_threshold": 0.5983611941337585,
+  "saliency_area": 0.12,
+  "saliency_by_size": [
+    {
+      "scale": 0.25,
+      "success_without_defense": 0.16,
+      "success_with_defense": 0.03,
+      "flagged": 0.21
+    },
+    {
+      "scale": 0.35,
+      "success_without_defense": 0.75,
+      "success_with_defense": 0.03,
+      "flagged": 0.78
+    },
+    {
+      "scale": 0.45,
+      "success_without_defense": 0.91,
+      "success_with_defense": 0.03,
+      "flagged": 0.92
+    },
+    {
+      "scale": 0.55,
+      "success_without_defense": 0.96,
+      "success_with_defense": 0.4,
+      "flagged": 0.6
+    },
+    {
+      "scale": 0.65,
+      "success_without_defense": 0.99,
+      "success_with_defense": 0.94,
+      "flagged": 0.05
+    }
+  ],
+  "trained_scale": [
+    0.25,
+    0.45
+  ]
 }

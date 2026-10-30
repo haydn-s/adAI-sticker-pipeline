@@ -54,9 +54,13 @@ The four evidence layers:
 - `adai-sticker defend`: blur, JPEG, and an explanation-based saliency-mask detector,
   each reported with its clean-accuracy cost.
 - An adaptive attacker that re-optimizes the sticker through the blur defense.
+- Adaptive attacks on the saliency detector: BPDA through a straight-through mask, an
+  attention-evasion loss, and both; plus success by sticker size, which exposes the
+  detector's fixed-size blind spot.
 - Teaching goal: attacks and defenses are an arms race, and robustness costs accuracy.
-- Next: an adversarially trained (robust) ResNet-50, and an adaptive attack on the
-  saliency detector (e.g. penalizing concentrated attention during optimization).
+- Next: an adversarially trained (robust) ResNet-50; a detector that adapts its mask
+  to the size of the hotspot, and the next round of attacks on it; repeating the
+  adaptive evaluation for other targets and seeds.
 
 ### M5: Web app
 - Guided flow that matches the six user-facing steps: pick a model → pick a target

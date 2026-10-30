@@ -45,9 +45,21 @@ lighting, blur, noise and printer color drift:
 
 - **Defenses cost accuracy, and attackers adapt.** Blurring inputs cuts success to
   42% for a 5-point accuracy cost, but a sticker re-optimized *through* the blur
-  gets back to 71%. Using the model's own Grad-CAM as a patch detector (gray out
-  where attention is suspiciously concentrated) cuts success to **4%** for the same
-  accuracy cost ([defenses](docs/examples/toaster-resnet50/fig_defense.png)).
+  gets back to 74% ([defenses](docs/examples/toaster-resnet50/fig_defense.png)).
+- **An explanation-based detector holds up better, within limits.** Using the
+  model's own Grad-CAM as a patch detector (gray out where attention is suspiciously
+  concentrated) cuts success to **4%** for the same accuracy cost. Attackers who know
+  about the detector get back to only **20%**. Re-optimizing through a
+  straight-through version of its mask barely helps (7%). Pushing Grad-CAM attention
+  off the sticker hides it from the detector, but a sticker that hides well gets
+  weaker even without the detector: flagged on 17% of photos instead of 69%, it
+  succeeds 25% of the time undefended. Doing both reaches 20% with the detector and
+  52% without. Treat 20% as a floor for the attacker, not a ceiling: the attention
+  attack was still improving with more weight and more steps. The detector also has
+  a blind spot: its mask has a fixed size.
+  The *same*, unmodified sticker printed at 65% of the photo's width (instead of
+  25–45%) spreads attention enough that it is rarely flagged, and succeeds 94% of the
+  time with the detector on ([details](docs/examples/toaster-resnet50/defense.md)).
 
 ![Success by rotation and size](docs/examples/toaster-resnet50/fig_grid.png)
 
@@ -124,8 +136,9 @@ uv run adai-sticker models
 # Re-test a saved sticker on more models
 uv run adai-sticker evaluate runs/<run> --transfer
 
-# Defend the model: blur, JPEG and an explanation-based patch detector, plus an adaptive attacker
-uv run adai-sticker defend runs/<run>
+# Defend the model: blur, JPEG and an explanation-based patch detector, each attacked
+# adaptively by an attacker who knows the defense (--adaptive-attack picks the attacks on the detector)
+uv run adai-sticker defend runs/<run> --adaptive-steps 1000
 
 # Physical test: score your own photos of the printed sticker
 uv run adai-sticker eval-photos --photos my_photos/ --target toaster --model resnet50
