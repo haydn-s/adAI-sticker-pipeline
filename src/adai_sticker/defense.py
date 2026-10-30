@@ -26,7 +26,7 @@ also be attacked by an *adaptive* attacker who knows it is there:
   for the mask (straight-through, in the spirit of BPDA), ``attention`` adds a loss
   that pushes Grad-CAM attention off the sticker while keeping the target label
   (Dombrowski et al., 2019 show explanations can be steered this way), and
-  ``combined`` does both.
+  ``combined`` adds the straight-through objective to the attention attack.
 """
 
 from __future__ import annotations
@@ -259,14 +259,17 @@ def attack_saliency(
 ) -> AttackResult:
     """Re-optimize ``sticker`` against a calibrated saliency defense (see :data:`SALIENCY_ATTACKS`).
 
-    ``bpda`` and ``combined`` optimize the defended prediction through
-    :class:`StraightThroughSaliency`; ``attention`` keeps the undefended prediction on
-    target while pushing the target's Grad-CAM attention off the sticker.
+    ``bpda`` optimizes the defended prediction through :class:`StraightThroughSaliency`.
+    ``attention`` keeps the undefended prediction on target while pushing the target's
+    Grad-CAM attention off the sticker. ``combined`` is ``attention`` plus the defended
+    prediction: the straight-through gradient alone is too weak to hold the label
+    against a large attention weight.
     """
     if kind not in SALIENCY_ATTACKS:
         raise ValueError(f"Unknown adaptive attack '{kind}'. Choose from: {', '.join(SALIENCY_ATTACKS)}")
     through = StraightThroughSaliency(defense, tau)
-    models: list[VictimModel] = [defense.base if kind == "attention" else through]
+    models: list[VictimModel] = {"bpda": [through], "attention": [defense.base],
+                                 "combined": [defense.base, through]}[kind]
     extra = None
     if kind in ("attention", "combined"):
         extra = attention_penalty(defense.base, defense.class_index(target), attention_weight)
@@ -542,7 +545,8 @@ def _saliency_section(result: dict) -> list[str]:
         "(Athalye, Carlini & Wagner, 2018).",
         "- **Attention-evasion loss**: keep the *undefended* prediction on target while "
         "penalizing the share of Grad-CAM attention on the sticker.",
-        "- **BPDA + attention loss**: both at once.",
+        "- **BPDA + attention loss**: the attention attack, also optimizing the defended "
+        "prediction through the straight-through mask.",
         "",
         "| Sticker | Attention on sticker | Flagged | Success with detector | Success without detector |",
         "|---|---|---|---|---|",

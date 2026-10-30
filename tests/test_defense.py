@@ -125,6 +125,10 @@ def test_attention_attack_moves_gradcam_off_sticker(tiny_model):
     assert share(sticker) < 0.5 * before
     with pytest.raises(ValueError):
         attack_saliency(sticker, d, target, bgs, cfg, "magic")
+    # The combined attack keeps the undefended label loss next to the straight-through one.
+    short = AttackConfig(steps=2, batch_size=4, scene_size=64)
+    assert attack_saliency(sticker, d, target, bgs, short, "combined").model_keys == [
+        "resnet50", "resnet50+saliency mask (straight-through)"]
 
 
 def test_defend_cli_reports_adaptive_attacks(tmp_path, monkeypatch):

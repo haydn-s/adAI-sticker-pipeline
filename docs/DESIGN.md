@@ -138,10 +138,25 @@ success and the drop in accuracy on ordinary photos. Defending is never free.
   exceeds a threshold, that region is grayed out and the photo is classified again.
   The threshold is calibrated on *training* photos so about 10% of clean photos are
   masked. Calibrating on training photos avoids tuning on the test set.
-- **Adaptive attacker**: blur is differentiable, so the sticker can be re-optimized
-  *through* the defense, starting from the original sticker. Defenses evaluated only
-  against non-adaptive attacks are known to overstate robustness (Athalye, Carlini &
-  Wagner, 2018; Tramèr et al., 2020).
+- **Adaptive attacker**: defenses evaluated only against non-adaptive attacks are
+  known to overstate robustness (Athalye, Carlini & Wagner, 2018; Tramèr et al.,
+  2020), so every adaptive attacker starts from the original sticker and re-optimizes
+  it knowing the defense and its settings.
+  - *Blur* is differentiable, so the sticker is re-optimized *through* it.
+  - *Saliency mask* makes two hard decisions (which pixels are the hotspot, and
+    whether to mask at all), so plain backpropagation gets no signal from a masked
+    sticker. `--adaptive-attack bpda` keeps the real detector in the forward pass and
+    swaps both thresholds for sigmoids in the backward pass (straight-through, in the
+    spirit of BPDA). The Grad-CAM heatmap itself stays differentiable: its channel
+    weights are held constant, which for ResNet-50 is exact because its last block
+    feeds global pooling and one linear layer. `--adaptive-attack attention` keeps
+    the target label on the undefended model while penalizing the share of Grad-CAM
+    attention on the sticker (explanations can be steered this way; Dombrowski et
+    al., 2019). `combined` adds the straight-through objective to the attention attack.
+  - Attack settings (attention weight, sigmoid temperature) are tuned on training
+    photos the attack doesn't optimize on, never on the held-out test photos, and the
+    strongest setting is reported. Each sticker's Grad-CAM attention share is
+    reported too, to check that the attack really changed what the model looks at.
 
 ### Safety in the core
 The target-label policy runs in `make_sticker` before any model is loaded, so every
@@ -182,4 +197,5 @@ front end inherits it. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 - Tarchoun et al. *Jedi: Entropy-based Localization and Removal of Adversarial Patches.* CVPR 2023.
 - Athalye, Carlini, Wagner. *Obfuscated Gradients Give a False Sense of Security.* ICML 2018.
 - Tramèr, Carlini, Brendel, Madry. *On Adaptive Attacks to Adversarial Example Defenses.* NeurIPS 2020.
+- Dombrowski et al. *Explanations can be manipulated and geometry is to blame.* NeurIPS 2019.
 - Howard. *Imagenette.* fast.ai, 2019.
